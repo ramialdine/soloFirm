@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
               status: run.status,
               agent_outputs: run.agent_outputs,
               final_output: run.final_output,
+              presentation: run.presentation,
               created_at: run.created_at,
               completed_at: run.completed_at,
             });

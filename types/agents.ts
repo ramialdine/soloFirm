@@ -6,6 +6,7 @@ export type AgentId =
   | "legal"
   | "finance"
   | "brand"
+  | "social"
   | "critic";
 
 export type AgentStatus = "idle" | "running" | "complete" | "error";
@@ -38,7 +39,37 @@ export interface QAMessage {
   content: string;
 }
 
-export type QAPhase = "asking" | "finalizing" | "complete";
+export interface QAQuestion {
+  question: string;
+  options: string[]; // exactly 3 — a 4th "Other" is added automatically by the UI
+}
+
+export interface QAHistoryEntry {
+  question: string;
+  answer: string;
+}
+
+export type QAPhase = "asking" | "complete";
+
+// ── Presentation (post-run packaging) ──
+
+export interface AgentSummary {
+  agentId: AgentId;
+  headline: string;   // one-line character tagline, e.g. "Your 90-day roadmap is locked in"
+  bullets: string[];   // 3-4 key takeaways
+}
+
+export interface Presentation {
+  businessName: string;
+  tagline: string;
+  brandTheme: {
+    primaryColor: string;   // hex
+    secondaryColor: string; // hex
+    accentColor: string;    // hex
+    fontFamily: string;
+  };
+  agentSummaries: AgentSummary[];
+}
 
 // ── Run ──
 
@@ -49,6 +80,7 @@ export interface Run {
   status: "pending" | "running" | "complete" | "partial" | "error";
   agent_outputs: Record<AgentId, AgentOutput>;
   final_output: string | null;
+  presentation: Presentation | null;
   created_at: string;
   completed_at: string | null;
 }
@@ -62,6 +94,7 @@ export type SSEEventType =
   | "agent_complete"
   | "agent_error"
   | "phase_complete"
+  | "synthesis_complete"
   | "run_complete"
   | "run_error";
 
@@ -71,13 +104,14 @@ export interface SSEEvent {
   content?: string;
   phase?: number;
   run?: Run;
+  presentation?: Presentation;
   error?: string;
   timestamp: string;
 }
 
 // ── Deliverable Categories ──
 
-export type DeliverableCategory = "action-plan" | "legal-docs" | "financial-setup" | "brand-package" | "review";
+export type DeliverableCategory = "action-plan" | "legal-docs" | "financial-setup" | "brand-package" | "social-media" | "review";
 
 export const DELIVERABLE_CATEGORIES: Record<DeliverableCategory, { label: string; description: string; agentId: AgentId }> = {
   "action-plan": {
@@ -99,6 +133,11 @@ export const DELIVERABLE_CATEGORIES: Record<DeliverableCategory, { label: string
     label: "Brand Package",
     description: "Positioning, messaging, and identity direction",
     agentId: "brand",
+  },
+  "social-media": {
+    label: "Social Media Launch Kit",
+    description: "Platform strategy, bios, and content calendar",
+    agentId: "social",
   },
   "review": {
     label: "Critical Review",
@@ -143,39 +182,98 @@ export const AGENT_META: Record<
     phase: 3,
     deliverable: "Brand Package",
   },
+  social: {
+    label: "Social Media Agent",
+    description: "Platform strategy, bios, content calendar, and launch kit",
+    phase: 4,
+    deliverable: "Social Media Launch Kit",
+  },
   critic: {
     label: "Critic Agent",
     description: "Adversarial review — finds gaps before investors do",
-    phase: 4,
+    phase: 5,
     deliverable: "Due Diligence Review",
   },
 };
 
 // ── Q&A System Prompt ──
 
-export const QA_SYSTEM_PROMPT = `You are a senior business launch consultant. A founder is setting up a new business and has filled out an intake form. Your job is to ask 3-5 targeted, specific clarifying questions that will help you build a better launch plan.
+export const QA_ROUND1_PROMPT = `You are a senior business consultant conducting a structured intake interview.
 
-Rules:
-- Ask questions that MATTER for this specific business type, location, and goals
-- Do NOT ask generic questions — each should unlock a specific insight
-- Frame questions conversationally, like a real consultant would
-- Number your questions (1., 2., 3., etc.)
-- Keep each question to 1-2 sentences
-- After the numbered questions, add a brief encouraging note about their business idea
+CRITICAL: Return ONLY a valid JSON object — no markdown, no explanation, no preamble. Use this exact format:
+{
+  "questions": [
+    {
+      "question": "Full question text, specific to this exact business and industry",
+      "options": ["Concise option A (5-10 words)", "Concise option B", "Concise option C"]
+    }
+  ]
+}
 
-Examples of GOOD questions:
-- "Will you be handling food directly or working through a commercial kitchen? This affects your licensing requirements in [state]."
-- "Are you planning to start with a specific geographic area or go national from day one?"
-- "Do you already have a technical co-founder, or will you need to outsource development?"
+Rules for questions (follow strictly):
+- Generate 3–4 questions maximum
+- Each question MUST be specific to this founder's actual idea — reference their real business, industry, and location
+- Focus on the highest-impact unknowns: monetization model, customer acquisition, service delivery, and one business-specific decision
+- Do NOT ask about things already captured in the intake: location, budget, entity type, or team size
 
-Examples of BAD questions (too generic):
-- "What's your target market?"
-- "What's your revenue model?"
-- "What's your competitive advantage?"`;
+Rules for options (follow strictly):
+- Exactly 3 options per question (the UI automatically adds a 4th "Other" option)
+- Options must be concrete, distinct, and cover the main realistic choices for this specific business
+- Keep each option under 10 words
+- Use parallel structure (all noun phrases OR all verb phrases)
 
-export const QA_FINALIZE_PROMPT = `You are a senior business launch consultant. Based on the founder's intake information and their answers to your clarifying questions, write a brief (3-5 sentence) summary of the business direction and key decisions that have been made. This summary will be used to brief specialist agents (legal, finance, research, brand, planner) who will produce detailed deliverables.
+Example of GOOD output for a fitness coaching business in Austin:
+{
+  "questions": [
+    {
+      "question": "How will you primarily deliver your coaching sessions?",
+      "options": ["In-person at a gym or studio", "Online via video call", "Hybrid — in-person and online"]
+    },
+    {
+      "question": "What is your main strategy for landing your first 10 clients?",
+      "options": ["Instagram/TikTok content & DMs", "Personal network & referrals", "Local gym or studio partnerships"]
+    }
+  ]
+}`;
 
-Be specific and concrete. Reference the actual business, location, entity type, budget, and any key decisions from the Q&A. Do NOT be generic.`;
+export const QA_ROUND2_PROMPT = `You are a senior business consultant reviewing a completed intake. Based on all information gathered, decide whether you have enough to build a comprehensive plan.
+
+CRITICAL: Return ONLY a valid JSON object — no markdown, no explanation. Use one of these two formats:
+
+FORMAT A — if you have enough information (use this in most cases):
+{"ready": true, "message": "1-2 encouraging sentences referencing their specific business and what you'll build"}
+
+FORMAT B — only if there is 1-2 truly critical gaps that would substantially change the plan:
+{"ready": false, "questions": [{"question": "Specific gap question", "options": ["Option A", "Option B", "Option C"]}]}
+
+Default to FORMAT A unless a gap would fundamentally change the legal structure, financial model, or core strategy. Maximum 2 follow-up questions if using FORMAT B.`;
+
+export const QA_FINALIZE_PROMPT = `You are a senior business launch consultant. Based on the founder's intake and all their Q&A answers, write a comprehensive planning brief that will guide specialist agents.
+
+Be specific and concrete — reference the actual business, location, entity type, budget, and every key decision from the Q&A.
+
+Format your output with these exact headers:
+
+## Business Overview
+2–3 sentences on the business, model, and core value proposition.
+
+## Target Market
+Specific customer segments and their exact pain points.
+
+## Revenue & Pricing Model
+How the business makes money, pricing approach.
+
+## Competitive Positioning
+Key differentiators from the answers given.
+
+## Key Risks
+Top 3 risks or unknowns based on the Q&A.
+
+## First 90 Days — Priorities
+The 3–5 most critical things to focus on first, specific to this business.`;
+
+// Keep QA_SYSTEM_PROMPT as alias for backwards compat
+export const QA_SYSTEM_PROMPT = QA_ROUND1_PROMPT;
 
 // ── Agent Prompts ──
 
@@ -498,6 +596,112 @@ Write ready-to-paste bios for 2 platforms.
 ### Competitive Differentiation Messaging
 Based on the competitive landscape, provide talk tracks for the top 3 competitors:
 - "When someone mentions [Competitor X], say: ..."`,
+
+  social: `You are a social media strategist, digital marketing expert, and online presence architect. Given a business brief and brand identity, create a complete social media launch kit AND set up the business's digital identity.
+
+Your output MUST begin with this exact section header: ## Social Media Launch Kit
+
+---
+
+### Business Email Setup
+
+This is the FIRST thing to set up — every social account below will use this email.
+
+#### Recommended Business Email
+- **Primary email:** hello@[businessname].com (or [founder]@[businessname].com)
+- **Support email:** support@[businessname].com
+- **Catch-all:** *@[businessname].com
+
+#### Domain + Email Provider Setup (Step-by-Step)
+1. **Register domain** at Namecheap (~$9/yr) or Cloudflare Registrar (at-cost pricing)
+   - Search: [businessname].com, [businessname].co, [businessname].io
+   - Also grab .co and .net if budget allows
+2. **Set up business email** — pick ONE:
+   | Provider | Monthly Cost | Free Trial | Best For |
+   |----------|-------------|------------|----------|
+   | Google Workspace | $7/user | 14 days | Most businesses — Gmail interface, Google Drive |
+   | Zoho Mail | $1/user | Free tier (1 user) | Budget-conscious — full-featured |
+   | iCloud+ Custom Domain | $1/month | None | Solo founders already in Apple ecosystem |
+   | Fastmail | $5/user | 30 days | Privacy-focused businesses |
+3. **DNS setup:** Add MX, SPF, DKIM, and DMARC records (provider gives exact values)
+4. **Verify domain ownership** in provider dashboard
+
+#### Email Signature Template
+\`\`\`
+[Founder Name]
+[Title] | [Business Name]
+[Phone] | hello@[businessname].com
+[Website URL]
+[LinkedIn] | [Instagram]
+\`\`\`
+
+#### Free Temporary Email (Start Today)
+If the domain isn't ready yet, create a free Gmail account NOW so you can start setting up social accounts:
+- **Format:** [businessname].official@gmail.com or [businessname].hq@gmail.com
+- Go to: accounts.google.com → Create account → For work or my business
+- Use this as your placeholder until the custom domain email is live
+- All social accounts can be updated to the custom email later
+
+---
+
+### Social Media Account Setup
+
+For each platform below, I provide the EXACT information needed to create and fully configure the account. Set up accounts in this order (each takes 3-5 minutes):
+
+For each RELEVANT platform (include only where this target customer actually spends time; briefly justify each inclusion/exclusion):
+
+#### [Platform Name]
+- **Account setup link:** [direct signup URL]
+- **Username:** @[recommended_handle] (check availability at namecheckr.com first)
+- **Display name:** [Business Name] or [Business Name] | [Tagline snippet]
+- **Bio** (include exact character count, keyword-optimized, ready to paste)
+- **Profile photo spec:** [dimensions] — use logo or founder headshot
+- **Cover/header image spec:** [dimensions]
+- **Bio link:** Use linktr.ee/[businessname] or bio.site/[businessname] (free) to consolidate links
+- **Category/Business type** to select during setup
+- **Content pillars** (2–3 content types that perform on this platform for this business)
+- **First 5 posts** with full caption copy and format notes
+- **Posting schedule** — frequency and best times for this audience
+- **Hashtags** — 8–12 curated hashtags
+
+Platforms to assess: Instagram, Facebook, X/Twitter, TikTok, LinkedIn, Threads, YouTube Shorts
+
+---
+
+### Quick-Start Account Creation Checklist
+A step-by-step checklist the founder can complete in one sitting:
+- [ ] Create business email (Gmail placeholder or custom domain)
+- [ ] Create link-in-bio page (Linktree or bio.site)
+- [ ] Set up Instagram Business account
+- [ ] Set up Facebook Business Page
+- [ ] Set up LinkedIn Company Page
+- [ ] Set up X/Twitter account
+- [ ] Set up TikTok Business account (if relevant)
+- [ ] Set up Google Business Profile (critical for local businesses)
+- [ ] Verify email on all platforms
+- [ ] Upload profile photos and cover images to all accounts
+- [ ] Post first piece of content on primary platform
+
+---
+
+### Google Business Profile Setup (if applicable)
+- Go to: business.google.com
+- Business name, category, service area
+- Operating hours, contact info, website
+- Upload 5+ photos on day one (storefront, team, product/service)
+- Request first review from a friend or early customer
+
+---
+
+### 30-Day Content Calendar
+A day-by-day calendar for the first 30 days — platform, content type, topic/angle, time to post.
+
+---
+
+### Profile Photo & Visual Assets Needed
+List all visual assets the founder needs to create before going live (dimensions and specs included).
+- Free tools: Canva (templates), Remove.bg (background removal), Unsplash (stock photos)
+- AI tools: Ideogram or Recraft for logo drafts, ChatGPT for copy variations`,
 
   critic: `You are a veteran venture capitalist and serial entrepreneur who has launched 12 businesses and reviewed thousands of business plans. You are conducting an adversarial review of this launch package.
 

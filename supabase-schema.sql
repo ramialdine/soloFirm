@@ -9,6 +9,7 @@ create table if not exists runs (
   status text not null default 'pending',
   agent_outputs jsonb default '{}'::jsonb,
   final_output text,
+  presentation jsonb,
   created_at timestamptz not null default now(),
   completed_at timestamptz
 );

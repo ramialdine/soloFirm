@@ -3,6 +3,11 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { Presentation, AgentId, AgentOutput } from "@/types/agents";
+import { SummaryCard } from "./AgentCard";
+import { AGENT_META } from "@/types/agents";
+
+// ── Legacy tabbed output (still used as a detail view) ──
 
 interface OutputPanelProps {
   finalOutput: string | null;
@@ -10,12 +15,13 @@ interface OutputPanelProps {
 }
 
 const SECTIONS = [
-  { id: "roadmap", label: "90-Day Launch Plan", marker: "## 90-Day Launch Roadmap" },
-  { id: "market", label: "Market Intelligence", marker: "## Market Intelligence" },
-  { id: "legal", label: "Legal & Compliance", marker: "## Legal Documents & Compliance" },
-  { id: "finance", label: "Financial Setup", marker: "## Financial Setup Guide" },
-  { id: "brand", label: "Brand Package", marker: "## Brand Package" },
-  { id: "review", label: "Launch Review", marker: "## Launch Readiness Review" },
+  { id: "roadmap", label: "90-Day Plan", marker: "## 90-Day Launch Roadmap" },
+  { id: "market", label: "Market Intel", marker: "## Market Intelligence" },
+  { id: "legal", label: "Legal", marker: "## Legal Documents & Compliance" },
+  { id: "finance", label: "Financial", marker: "## Financial Setup Guide" },
+  { id: "brand", label: "Brand", marker: "## Brand Package" },
+  { id: "social", label: "Social Media", marker: "## Social Media Launch Kit" },
+  { id: "review", label: "Review", marker: "## Launch Readiness Review" },
 ];
 
 function splitSections(output: string): Record<string, string> {
@@ -26,12 +32,10 @@ function splitSections(output: string): Record<string, string> {
     const startIndex = output.indexOf(section.marker);
     if (startIndex === -1) continue;
 
-    // Find the end: either the next section marker or end of string
     let endIndex = output.length;
     for (let j = i + 1; j < SECTIONS.length; j++) {
       const nextIdx = output.indexOf(SECTIONS[j].marker);
       if (nextIdx > startIndex) {
-        // Check for a "---" separator before the next section
         const separatorIdx = output.lastIndexOf("---", nextIdx);
         endIndex = separatorIdx > startIndex ? separatorIdx : nextIdx;
         break;
@@ -45,7 +49,8 @@ function splitSections(output: string): Record<string, string> {
 }
 
 export default function OutputPanel({ finalOutput, isComplete }: OutputPanelProps) {
-  const [activeTab, setActiveTab] = useState("roadmap");
+  const firstAvailableTab = SECTIONS[0].id;
+  const [activeTab, setActiveTab] = useState(firstAvailableTab);
 
   if (!finalOutput && !isComplete) {
     return (
@@ -107,6 +112,206 @@ export default function OutputPanel({ finalOutput, isComplete }: OutputPanelProp
         ) : (
           <MarkdownBody content={finalOutput} />
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── Branded packaging panel (the new "reveal" experience) ──
+
+const AGENT_IDS: AgentId[] = ["planner", "research", "legal", "finance", "brand", "social", "critic"];
+
+interface PackagingPanelProps {
+  presentation: Presentation;
+  outputs: Record<AgentId, AgentOutput>;
+  onPresentationChange: (updated: Presentation) => void;
+  onFinalize: () => void;
+  runId: string | null;
+  saving?: boolean;
+}
+
+export function PackagingPanel({
+  presentation,
+  outputs,
+  onPresentationChange,
+  onFinalize,
+  runId,
+  saving,
+}: PackagingPanelProps) {
+  const { brandTheme } = presentation;
+
+  return (
+    <div className="space-y-6">
+      {/* Business identity header — editable */}
+      <div
+        className="relative overflow-hidden rounded-2xl border border-zinc-200 shadow-sm"
+        style={{
+          background: `linear-gradient(135deg, ${brandTheme.primaryColor}08 0%, ${brandTheme.accentColor}12 100%)`,
+        }}
+      >
+        <div className="px-6 py-8 sm:px-8">
+          <p className="text-xs font-medium uppercase tracking-widest text-zinc-400 mb-3">Your Business</p>
+
+          {/* Editable business name */}
+          <input
+            type="text"
+            value={presentation.businessName}
+            onChange={(e) =>
+              onPresentationChange({ ...presentation, businessName: e.target.value })
+            }
+            className="block w-full bg-transparent text-3xl sm:text-4xl font-bold text-zinc-900 border-none outline-none placeholder:text-zinc-300 focus:ring-0 p-0"
+            placeholder="Business Name"
+          />
+
+          {/* Editable tagline */}
+          <input
+            type="text"
+            value={presentation.tagline}
+            onChange={(e) =>
+              onPresentationChange({ ...presentation, tagline: e.target.value })
+            }
+            className="mt-2 block w-full bg-transparent text-lg text-zinc-500 border-none outline-none placeholder:text-zinc-300 focus:ring-0 p-0"
+            placeholder="Your tagline"
+          />
+
+          {/* Brand theme swatches — editable */}
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <span className="text-xs text-zinc-400 mr-1">Theme:</span>
+            {(["primaryColor", "secondaryColor", "accentColor"] as const).map((key) => (
+              <label key={key} className="group relative cursor-pointer">
+                <div
+                  className="h-7 w-7 rounded-full ring-2 ring-white shadow-sm transition-transform group-hover:scale-110"
+                  style={{ backgroundColor: brandTheme[key] }}
+                />
+                <input
+                  type="color"
+                  value={brandTheme[key]}
+                  onChange={(e) =>
+                    onPresentationChange({
+                      ...presentation,
+                      brandTheme: { ...brandTheme, [key]: e.target.value },
+                    })
+                  }
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                />
+              </label>
+            ))}
+            <input
+              type="text"
+              value={brandTheme.fontFamily}
+              onChange={(e) =>
+                onPresentationChange({
+                  ...presentation,
+                  brandTheme: { ...brandTheme, fontFamily: e.target.value },
+                })
+              }
+              className="ml-2 rounded-lg border border-zinc-200 bg-white/80 px-3 py-1 text-xs text-zinc-600 w-28 focus:border-zinc-400 focus:outline-none"
+              placeholder="Font family"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Agent summary cards */}
+      <div>
+        <h3 className="mb-3 text-sm font-medium text-zinc-700">Your Launch Package</h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {AGENT_IDS.map((id) => {
+            const summary = presentation.agentSummaries.find((s) => s.agentId === id);
+            if (!summary || !outputs[id]?.content) return null;
+            return (
+              <SummaryCard
+                key={id}
+                agentId={id}
+                summary={summary}
+                content={outputs[id].content}
+                brandTheme={brandTheme}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Finalize bar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
+        <div>
+          <p className="text-sm font-medium text-zinc-700">Happy with your package?</p>
+          <p className="text-xs text-zinc-400">Edit the name, tagline, or colors above, then finalize.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {runId && (
+            <button
+              type="button"
+              onClick={() => navigator.clipboard.writeText(`${window.location.origin}/results/${runId}`)}
+              className="rounded-lg border border-zinc-200 px-4 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
+            >
+              Copy link
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onFinalize}
+            disabled={saving}
+            className="rounded-xl bg-zinc-900 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Finalize & Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Summary-first results view (used in results/[id] page) ──
+
+interface ResultsPresentationProps {
+  presentation: Presentation;
+  outputs: Record<AgentId, AgentOutput>;
+}
+
+export function ResultsPresentation({ presentation, outputs }: ResultsPresentationProps) {
+  const { brandTheme } = presentation;
+
+  return (
+    <div className="space-y-6">
+      {/* Business identity header */}
+      <div
+        className="relative overflow-hidden rounded-2xl border border-zinc-200 shadow-sm"
+        style={{
+          background: `linear-gradient(135deg, ${brandTheme.primaryColor}08 0%, ${brandTheme.accentColor}12 100%)`,
+        }}
+      >
+        <div className="px-6 py-8 sm:px-8">
+          <h1 className="text-3xl sm:text-4xl font-bold text-zinc-900">{presentation.businessName}</h1>
+          <p className="mt-2 text-lg text-zinc-500">{presentation.tagline}</p>
+          <div className="mt-5 flex items-center gap-2">
+            {(["primaryColor", "secondaryColor", "accentColor"] as const).map((key) => (
+              <div
+                key={key}
+                className="h-5 w-5 rounded-full ring-2 ring-white shadow-sm"
+                style={{ backgroundColor: brandTheme[key] }}
+              />
+            ))}
+            <span className="ml-2 text-xs text-zinc-400">{brandTheme.fontFamily}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Agent summary cards */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {AGENT_IDS.map((id) => {
+          const summary = presentation.agentSummaries.find((s) => s.agentId === id);
+          if (!summary || !outputs[id]?.content) return null;
+          return (
+            <SummaryCard
+              key={id}
+              agentId={id}
+              summary={summary}
+              content={outputs[id].content}
+              brandTheme={brandTheme}
+            />
+          );
+        })}
       </div>
     </div>
   );

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "idea-reality": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "idea-reality-mcp"
+      ],
+      "env": {}
+    }
+  }
+}
