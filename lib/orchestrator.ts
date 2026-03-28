@@ -7,7 +7,7 @@ import type {
   RunInput,
 } from "@/types/agents";
 import { AGENT_PROMPTS } from "@/types/agents";
-import { getOpenAI } from "@/lib/openai";
+import { CHAT_MODEL, getOpenAI } from "@/lib/openai";
 
 const AGENT_TIMEOUT_MS = 30_000;
 
@@ -53,7 +53,7 @@ async function callAgent(
   try {
     const stream = await openai.chat.completions.create(
       {
-        model: "gpt-4o-mini",
+        model: CHAT_MODEL,
         stream: true,
         messages: [
           { role: "system", content: systemPrompt },

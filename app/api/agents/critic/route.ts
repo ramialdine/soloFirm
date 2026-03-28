@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOpenAI } from "@/lib/openai";
+import { CHAT_MODEL, getOpenAI } from "@/lib/openai";
 import { AGENT_PROMPTS } from "@/types/agents";
 
 export async function POST(req: NextRequest) {
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       : `Domain: ${domain}\nTask: ${task}`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: CHAT_MODEL,
       messages: [
         { role: "system", content: AGENT_PROMPTS.critic },
         { role: "user", content: userMessage },
