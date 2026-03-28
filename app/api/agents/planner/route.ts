@@ -4,24 +4,20 @@ import { AGENT_PROMPTS } from "@/types/agents";
 
 export async function POST(req: NextRequest) {
   try {
-    const { domain, task, context } = await req.json();
+    const { context } = await req.json();
     const openai = getOpenAI();
-
-    const userMessage = context
-      ? `Domain: ${domain}\nTask: ${task}\n\n${context}`
-      : `Domain: ${domain}\nTask: ${task}`;
 
     const completion = await openai.chat.completions.create({
       model: CHAT_MODEL,
       messages: [
-        { role: "system", content: AGENT_PROMPTS.writer },
-        { role: "user", content: userMessage },
+        { role: "system", content: AGENT_PROMPTS.planner },
+        { role: "user", content: context ?? "" },
       ],
-      max_tokens: 2000,
+      max_tokens: 4000,
     });
 
     return NextResponse.json({
-      agentId: "writer",
+      agentId: "planner",
       content: completion.choices[0]?.message?.content ?? "",
     });
   } catch (err: unknown) {

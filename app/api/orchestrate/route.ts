@@ -3,15 +3,25 @@ import { orchestrate } from "@/lib/orchestrator";
 import { getServiceSupabase } from "@/lib/supabase";
 import type { SSEEvent } from "@/types/agents";
 
-export const maxDuration = 120; // Allow up to 2 minutes for full orchestration
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   try {
-    const { domain, task } = await req.json();
+    const body = await req.json();
+    const {
+      businessIdea,
+      location,
+      budgetRange,
+      entityPreference,
+      teamSize,
+      documents,
+      clarifyingAnswers,
+      planSummary,
+    } = body;
 
-    if (!domain || !task) {
+    if (!businessIdea) {
       return new Response(
-        JSON.stringify({ error: "domain and task are required" }),
+        JSON.stringify({ error: "businessIdea is required" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -26,9 +36,21 @@ export async function POST(req: NextRequest) {
         };
 
         try {
-          const run = await orchestrate({ domain, task }, emit);
+          const run = await orchestrate(
+            {
+              businessIdea,
+              location: location || "United States",
+              budgetRange: budgetRange || "Not specified",
+              entityPreference: entityPreference || "Not sure",
+              teamSize: teamSize || "Solo",
+              documents,
+              clarifyingAnswers,
+              planSummary,
+            },
+            emit
+          );
 
-          // Persist to Supabase (best-effort, don't fail the stream)
+          // Persist to Supabase (best-effort)
           try {
             const sb = getServiceSupabase();
             await sb.from("runs").upsert({
@@ -42,7 +64,7 @@ export async function POST(req: NextRequest) {
               completed_at: run.completed_at,
             });
           } catch {
-            // Supabase persistence is best-effort for MVP
+            // best-effort
           }
 
           controller.close();

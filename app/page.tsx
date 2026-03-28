@@ -5,27 +5,54 @@ import Link from "next/link";
 
 const USE_CASES = [
   {
-    title: "Market Entry Analysis",
-    description: "Six AI agents research, model, strategize, and critique your market entry plan in minutes.",
-    icon: "📊",
+    title: "Start a Business",
+    description: "From idea to LLC formation, EIN, bank account setup, and a 90-day launch plan — all in one session.",
+    icon: "🚀",
   },
   {
-    title: "Investment Due Diligence",
-    description: "Get comprehensive financial, legal, and strategic analysis of any investment opportunity.",
-    icon: "💰",
+    title: "Get Your Legal Docs",
+    description: "Operating agreements, articles of organization, compliance checklists — drafted for your state and entity type.",
+    icon: "📋",
   },
   {
-    title: "Competitive Intelligence",
-    description: "Multi-angle competitive analysis with built-in devil's advocate to stress-test your strategy.",
-    icon: "🎯",
+    title: "Build Your Brand",
+    description: "Positioning, taglines, color palette, logo direction, and launch messaging ready for a designer.",
+    icon: "🎨",
+  },
+];
+
+const HOW_IT_WORKS = [
+  {
+    step: "1",
+    title: "Describe Your Business",
+    description: "Tell us your idea, location, budget, and team size. Upload any docs you have.",
+    color: "bg-blue-100 text-blue-700",
+  },
+  {
+    step: "2",
+    title: "Answer a Few Questions",
+    description: "Our AI consultant asks targeted follow-ups to nail down the right plan for you.",
+    color: "bg-violet-100 text-violet-700",
+  },
+  {
+    step: "3",
+    title: "Agents Build Your Package",
+    description: "Six specialized agents work in parallel — legal, finance, research, branding, planning, and review.",
+    color: "bg-amber-100 text-amber-700",
+  },
+  {
+    step: "4",
+    title: "Get Your Launch Package",
+    description: "Real documents, actionable plans, and step-by-step guidance you can execute today.",
+    color: "bg-emerald-100 text-emerald-700",
   },
 ];
 
 const SOCIAL_PROOF = [
   { metric: "6", label: "Specialized AI Agents" },
-  { metric: "4", label: "Analysis Phases" },
-  { metric: "<2min", label: "Average Run Time" },
-  { metric: "100%", label: "Transparent Process" },
+  { metric: "4", label: "Phases of Analysis" },
+  { metric: "<3min", label: "To Full Package" },
+  { metric: "$0", label: "vs. $5-10k at a Firm" },
 ];
 
 export default function LandingPage() {
@@ -43,9 +70,7 @@ export default function LandingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
       });
-      if (res.ok) {
-        setSubmitted(true);
-      }
+      if (res.ok) setSubmitted(true);
     } finally {
       setLoading(false);
     }
@@ -61,7 +86,7 @@ export default function LandingPage() {
             href="/dashboard"
             className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
           >
-            Try Demo
+            Launch Your Business →
           </Link>
         </div>
       </nav>
@@ -70,23 +95,23 @@ export default function LandingPage() {
       <section className="px-6 py-24 text-center">
         <div className="mx-auto max-w-3xl">
           <h1 className="text-5xl font-bold tracking-tight text-zinc-900 sm:text-6xl">
-            Your AI-Powered
+            Everything You Need to
             <br />
             <span className="bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">
-              Advisory Team
+              Launch Your Business
             </span>
           </h1>
           <p className="mt-6 text-lg leading-8 text-zinc-600">
-            Six specialized AI agents work in concert — researching, modeling, strategizing, and
-            critiquing — to deliver comprehensive business analysis in under two minutes. Like
-            having a full consulting team, without the retainer.
+            Six AI agents work together to produce your complete business launch package —
+            LLC docs, financial setup, brand identity, and a 90-day action plan.
+            Like hiring a $10k consulting firm, in under 3 minutes.
           </p>
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link
               href="/dashboard"
               className="rounded-lg bg-zinc-900 px-8 py-3 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-zinc-700"
             >
-              Start Free Analysis
+              Start Free — Launch Your Business
             </Link>
             <a
               href="#how-it-works"
@@ -98,7 +123,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Social Proof Strip */}
+      {/* Social Proof */}
       <section className="border-y border-zinc-100 bg-zinc-50 px-6 py-12">
         <div className="mx-auto grid max-w-4xl grid-cols-2 gap-8 sm:grid-cols-4">
           {SOCIAL_PROOF.map((item) => (
@@ -110,25 +135,19 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How It Works / Demo Animation */}
+      {/* How It Works */}
       <section id="how-it-works" className="px-6 py-24">
         <div className="mx-auto max-w-4xl text-center">
           <h2 className="text-3xl font-bold tracking-tight text-zinc-900">How It Works</h2>
-          <p className="mt-4 text-zinc-600">Four phases, six agents, one comprehensive deliverable.</p>
-
+          <p className="mt-4 text-zinc-600">From idea to launch-ready in four steps.</p>
           <div className="mt-16 grid gap-8 sm:grid-cols-4">
-            {[
-              { phase: "Phase 1", title: "Research & Finance", agents: "Research Agent + Finance Agent run in parallel", color: "bg-blue-100 text-blue-700" },
-              { phase: "Phase 2", title: "Strategy & Legal", agents: "Strategy Agent + Legal Agent analyze Phase 1 findings", color: "bg-violet-100 text-violet-700" },
-              { phase: "Phase 3", title: "Synthesis", agents: "Writer Agent creates unified executive deliverable", color: "bg-amber-100 text-amber-700" },
-              { phase: "Phase 4", title: "Critical Review", agents: "Critic Agent identifies gaps and objections", color: "bg-emerald-100 text-emerald-700" },
-            ].map((p) => (
-              <div key={p.phase} className="rounded-xl border border-zinc-200 bg-white p-6 text-left shadow-sm">
+            {HOW_IT_WORKS.map((p) => (
+              <div key={p.step} className="rounded-xl border border-zinc-200 bg-white p-6 text-left shadow-sm">
                 <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${p.color}`}>
-                  {p.phase}
+                  Step {p.step}
                 </span>
                 <h3 className="mt-3 font-semibold text-zinc-900">{p.title}</h3>
-                <p className="mt-2 text-sm text-zinc-500">{p.agents}</p>
+                <p className="mt-2 text-sm text-zinc-500">{p.description}</p>
               </div>
             ))}
           </div>
@@ -138,7 +157,8 @@ export default function LandingPage() {
       {/* Use Cases */}
       <section className="border-t border-zinc-100 bg-zinc-50 px-6 py-24">
         <div className="mx-auto max-w-4xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-zinc-900">What You Can Analyze</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-zinc-900">What You Get</h2>
+          <p className="mt-4 text-zinc-600">Real deliverables, not generic advice.</p>
           <div className="mt-12 grid gap-8 sm:grid-cols-3">
             {USE_CASES.map((uc) => (
               <div key={uc.title} className="rounded-xl border border-zinc-200 bg-white p-6 text-left shadow-sm">
@@ -151,12 +171,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA / Waitlist */}
+      {/* CTA */}
       <section className="px-6 py-24 text-center">
         <div className="mx-auto max-w-xl">
           <h2 className="text-3xl font-bold tracking-tight text-zinc-900">Get Early Access</h2>
           <p className="mt-4 text-zinc-600">
-            Join the waitlist for priority access to advanced features, custom agents, and team plans.
+            Join the waitlist for priority access to custom agents, document export, and team features.
           </p>
           {submitted ? (
             <div className="mt-8 rounded-lg bg-emerald-50 px-6 py-4 text-emerald-700">
@@ -177,16 +197,15 @@ export default function LandingPage() {
                 disabled={loading}
                 className="rounded-lg bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
               >
-                {loading ? "..." : "Join Waitlist"}
+                {loading ? "…" : "Join Waitlist"}
               </button>
             </form>
           )}
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="border-t border-zinc-100 px-6 py-8 text-center text-sm text-zinc-400">
-        &copy; {new Date().getFullYear()} SoloFirm. AI-powered business intelligence.
+        &copy; {new Date().getFullYear()} SoloFirm. AI-powered business launch platform.
       </footer>
     </div>
   );

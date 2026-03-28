@@ -2,8 +2,8 @@ import AgentOrchestrator from "@/components/AgentOrchestrator";
 import Link from "next/link";
 
 export const metadata = {
-  title: "SoloFirm | Dashboard",
-  description: "Run multi-agent business analysis",
+  title: "SoloFirm | Launch Your Business",
+  description: "AI-powered business launch — legal docs, financial setup, brand identity, and a 90-day plan in minutes.",
 };
 
 export default function DashboardPage() {
@@ -15,7 +15,7 @@ export default function DashboardPage() {
             SoloFirm
           </Link>
           <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
-            Demo
+            Beta
           </span>
         </div>
       </nav>
