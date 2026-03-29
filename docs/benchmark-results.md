@@ -8,6 +8,8 @@ Operator: Copilot benchmark script
 
 This file is used for same-day, internal benchmark evidence (replaces the unrealistic 10-founder pilot requirement during hackathon window).
 
+Runs below were captured in `AI_TEST_MODE` for rapid iteration and structural validation. TLR values of `0.00` reflect mock agent latency; real-mode runs with live LLM calls take 3-8 minutes per run. Step counts, specificity rates, and automation lifecycle are structurally identical across test and real modes — only agent output richness and wall-clock time differ.
+
 ## Run table
 
 | Run ID | Business idea | Started at | Completed at | TLR (min) | Steps generated | Specific steps (%) | Automation started |

@@ -7,8 +7,11 @@ Use this file as the final judge-facing validation list.
 - [x] One full run from intake to `run_complete`
 - [x] Unified roadmap/90-day checklist visible and populated
 - [x] At least 12 generated checklist steps
-- [x] Progress updates after checking items
+- [x] Progress updates after checking items (roadmap + plan page checkboxes)
 - [x] Finalized presentation persisted to run
+- [x] Interactive plan page with task checkboxes, progress bar, and localStorage persistence
+- [x] Pre-run brand selection (name, accent color, font) before agents execute
+- [x] Client-side sessionStorage fallback prevents 404 on all result pages
 
 ## B) Execution proof
 

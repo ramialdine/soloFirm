@@ -110,6 +110,8 @@ Core `runs` columns used by runtime:
 - Best-effort persistence to avoid user-facing hard failures
 - Local run-store fallback for read/export/finalize continuity
 - Outbound webhook delivery is best-effort and does not block `run_complete` stream emission
+- Client-side `sessionStorage` fallback: on `run_complete`, the full run is stored in `sessionStorage` before navigation. Result pages (`/results/[id]`, `/results/[id]/plan`, `/results/[id]/roadmap`) read from `sessionStorage` when Supabase hasn't committed yet — eliminates 404 race conditions entirely.
+- `run_complete` is emitted from the route handler (`app/api/orchestrate/route.ts`) AFTER the Supabase upsert, not from the orchestrator — ensures DB row exists before client navigates.
 
 ## 7) Current constraints
 

@@ -48,6 +48,9 @@ This document maps judging dimensions to concrete, repo-local evidence.
 - Evidence checklist (all critical boxes): [docs/evidence-pack.md](evidence-pack.md)
 - Progress interaction proof: [docs/evidence/progress-update.json](evidence/progress-update.json)
 - Run APIs + finalization flow: [docs/api.md](api.md)
+- Interactive plan page with task checkboxes + progress bar: [app/results/[id]/plan/plan-client.tsx](../app/results/[id]/plan/plan-client.tsx)
+- Pre-run brand selection: [components/AgentOrchestrator.tsx](../components/AgentOrchestrator.tsx)
+- Client resilience (sessionStorage fallback): [app/results/[id]/plan/plan-loader.tsx](../app/results/[id]/plan/plan-loader.tsx)
 
 ## 9) Documentation score defense
 

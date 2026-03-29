@@ -8,10 +8,12 @@ SoloFirm is an AI launch operating system for first-time founders. It combines:
 The main user flow:
 
 1. Founder submits intake
-2. AI asks clarifying questions
-3. Agents run in dependency phases
-4. Output is synthesized into a launch package + roadmap
-5. User can finalize edits and trigger setup actions
+2. AI asks clarifying questions (context-aware, business-specific)
+3. Founder picks brand name, accent color, and font
+4. 7 agents run in dependency phases with real-time SSE streaming
+5. Output is synthesized into a launch package, interactive roadmap, and full 90-day plan
+6. Plan page has clickable task checkboxes with progress tracking (persisted in localStorage)
+7. User can trigger setup actions via automation sidecar
 
 ## Quick start
 
@@ -81,8 +83,9 @@ Defined in [package.json](package.json):
 - Orchestration core: [lib/orchestrator.ts](lib/orchestrator.ts)
 - Agent and payload types: [types/agents.ts](types/agents.ts)
 - AI provider adapter: [lib/openai.ts](lib/openai.ts)
-- Persistence: Supabase (`runs`, `waitlist`)
+- Persistence: Supabase (`runs`, `waitlist`) with local JSON fallback
 - Automation runtime: [automation-server/index.ts](automation-server/index.ts)
+- Client resilience: `sessionStorage` fallback for result pages (prevents 404 on race between Supabase save and navigation)
 
 Detailed architecture docs: [docs/architecture.md](docs/architecture.md)
 
