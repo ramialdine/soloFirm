@@ -190,6 +190,7 @@ SoloFirm’s planner-to-action mapping is not raw prompt passthrough. It uses:
 3. **docs/api.md** — endpoint contracts, request/response examples, status codes.
 4. **docs/operations.md** — local runbook, failure recovery, demo protocol.
 5. **docs/evidence-pack.md** — exact artifacts judges should inspect.
+6. **docs/submission-pack.md** — rubric-to-proof mapping for fast judge verification.
 
 ### Documentation quality bar
 - Every claim must point to one verifiable artifact.
@@ -352,7 +353,8 @@ This plan is complete only if all are true:
 3. [docs/api.md](docs/api.md)
 4. [docs/operations.md](docs/operations.md)
 5. [docs/evidence-pack.md](docs/evidence-pack.md)
-6. Benchmark results file from real runs
+6. [docs/submission-pack.md](docs/submission-pack.md)
+7. Benchmark results file from real runs
 
 This is the fastest path to push every judged dimension toward 100 by converting design quality into visible, reproducible proof.
 

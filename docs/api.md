@@ -359,8 +359,6 @@ Purpose: Authentication/session lifecycle endpoints managed by NextAuth handlers
 
 Implementation: [app/api/auth/[...nextauth]/route.ts](../app/api/auth/[...nextauth]/route.ts)
 
-Implementation: [app/api/brand/logo/route.ts](../app/api/brand/logo/route.ts)
-
 ## Automation sidecar API
 
 Base: `AUTOMATION_SERVER_URL` (default `http://localhost:3001`)
