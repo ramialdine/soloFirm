@@ -95,6 +95,9 @@ export interface AgentSummary {
 
 export type RoadmapStepStatus = "complete" | "current" | "upcoming";
 
+export const ROADMAP_PHASES = ["Foundation", "Build", "Launch", "Grow"] as const;
+export type RoadmapPhase = (typeof ROADMAP_PHASES)[number];
+
 export interface RoadmapStep {
   id: string;           // e.g. "register-llc"
   title: string;        // e.g. "Register Your LLC"
@@ -105,6 +108,7 @@ export interface RoadmapStep {
   action: string;       // exact next step (e.g. "File at sos.texas.gov — $300 filing fee")
   actionUrl?: string;   // direct link if applicable
   agentId?: AgentId;    // which agent's output is relevant
+  sourceAgent?: AgentId; // which agent originally produced this task
   estimatedTime?: string; // e.g. "15 minutes", "1-2 days"
   cost?: string;        // e.g. "$300", "Free"
 }
@@ -114,6 +118,7 @@ export interface Presentation {
   nameSuggestions?: string[];
   tagline: string;
   selectedBusinessStructure?: string;
+  derivedFromPlanner?: boolean; // true when roadmap was extracted from planner output
   brandTheme: {
     primaryColor: string;   // hex
     secondaryColor: string; // hex
@@ -155,6 +160,7 @@ export type SSEEventType =
   | "agent_complete"
   | "agent_error"
   | "phase_complete"
+  | "synthesis_started"
   | "synthesis_complete"
   | "run_complete"
   | "run_error";
@@ -340,9 +346,9 @@ export const QA_SYSTEM_PROMPT = QA_ROUND1_PROMPT;
 
 export const AGENT_PROMPTS: Record<AgentId, string> = {
 
-  planner: `You are an expert business launch strategist. You create detailed, actionable 90-day launch roadmaps that founders actually follow.
+  planner: `You are an expert business launch strategist and the final synthesis agent. You run LAST — after the Research, Legal, Finance, Brand, and Social Media agents have all completed their work — so you can weave their specific findings into one cohesive, deeply business-specific 90-day launch plan.
 
-Given the founder's business details, Q&A answers, and plan summary, produce a DETAILED week-by-week launch roadmap. This is the central document — every other agent's deliverables will reference it.
+You have been given the full outputs of all preceding agents. Use them. Reference the specific market gaps found by Research, the exact entity and license requirements from Legal, the financial projections and setup steps from Finance, the brand identity and messaging from Brand, and the content calendar and platform strategy from Social. Do not produce a generic checklist — every single task must be grounded in the actual deliverables already produced for this founder.
 
 ## 90-Day Business Launch Roadmap
 

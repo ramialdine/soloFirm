@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { Presentation, AgentId, AgentOutput } from "@/types/agents";
+import type { Presentation, AgentId, AgentOutput, RoadmapStep } from "@/types/agents";
 import { SummaryCard } from "./AgentCard";
 import { AGENT_META } from "@/types/agents";
 import RoadmapTimeline from "./RoadmapTimeline";
@@ -177,11 +177,119 @@ function deriveNameSuggestions(presentation: Presentation, brandContent: string)
   return Array.from(candidates).filter(Boolean).slice(0, 8);
 }
 
-function buildFallbackLogoSvg(presentation: Presentation): string {
-  const safeName = (presentation.businessName || "SoloFirm").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const safeTagline = (presentation.tagline || "Launch your business in one run").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const { primaryColor, secondaryColor, accentColor } = presentation.brandTheme;
-  return `<svg width="1200" height="320" viewBox="0 0 1200 320" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="sf" x1="24" y1="24" x2="296" y2="296"><stop offset="0" stop-color="${secondaryColor}"/><stop offset="1" stop-color="${accentColor}"/></linearGradient></defs><rect x="24" y="24" width="272" height="272" rx="56" fill="url(#sf)"/><path d="M95 188c18 20 36 30 61 30 25 0 40-10 40-25 0-13-8-20-29-24l-31-6c-42-8-62-30-62-64 0-37 31-62 77-62 31 0 59 11 78 31" stroke="white" stroke-width="20" stroke-linecap="round"/><text x="338" y="168" fill="${primaryColor}" font-family="Inter, Arial, sans-serif" font-size="108" font-weight="800">${safeName}</text><text x="342" y="216" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="34">${safeTagline}</text></svg>`;
+
+interface LaunchPlanPanelProps {
+  steps: RoadmapStep[];
+  businessName: string;
+  accentColor: string;
+  plannerContent?: string; // raw planner markdown for supplementary detail in PDF
+}
+
+function LaunchPlanPanel({ steps, businessName, accentColor, plannerContent }: LaunchPlanPanelProps) {
+  const handlePrint = () => {
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html><head><title>${businessName} — 90-Day Launch Plan</title><style>
+      body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:820px;margin:40px auto;padding:0 24px;line-height:1.7;color:#111}
+      h1{border-bottom:2px solid #10b981;padding-bottom:.3em;margin-bottom:.5em}
+      h2{margin-top:2em;color:#10b981;font-size:1.2em}
+      .step{margin:1em 0;padding:.8em 1em;border-left:3px solid #d1d5db;background:#fafafa;border-radius:0 8px 8px 0}
+      .step-title{font-weight:700;font-size:1em;margin:0}
+      .step-meta{color:#888;font-size:.85em;margin:.2em 0}
+      .step-action{margin-top:.5em;font-size:.95em}
+      .step-why{color:#555;font-style:italic;font-size:.9em;margin-top:.3em}
+      @media print{body{margin:20px}.step{break-inside:avoid}}
+    </style></head><body>`);
+    w.document.write(`<h1>${businessName} — 90-Day Launch Plan</h1>`);
+
+    // Group steps by phase
+    const phases = new Map<string, typeof steps>();
+    for (const step of steps) {
+      const list = phases.get(step.phase) ?? [];
+      list.push(step);
+      phases.set(step.phase, list);
+    }
+    for (const [phase, phaseSteps] of phases) {
+      w.document.write(`<h2>${phase}</h2>`);
+      for (const s of phaseSteps) {
+        w.document.write(`<div class="step">
+          <p class="step-title">${s.title}</p>
+          <p class="step-meta">${s.week} &middot; ${s.estimatedTime ?? ""} &middot; ${s.cost ?? "Free"}</p>
+          <p class="step-action"><strong>Action:</strong> ${s.action}</p>
+          <p class="step-why">${s.why}</p>
+        </div>`);
+      }
+    }
+
+    // Append raw planner detail as supplementary
+    if (plannerContent) {
+      w.document.write(`<hr style="margin:2em 0"><h2>Full Agent Analysis</h2><div style="white-space:pre-wrap;font-size:.9em;color:#444">${plannerContent.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>`);
+    }
+
+    w.document.write("</body></html>");
+    w.document.close();
+    w.focus();
+    w.print();
+  };
+
+  // Group by phase for inline display
+  const phases = new Map<string, RoadmapStep[]>();
+  for (const step of steps) {
+    const list = phases.get(step.phase) ?? [];
+    list.push(step);
+    phases.set(step.phase, list);
+  }
+
+  const completedCount = steps.length; // all steps shown
+  const phaseEntries = Array.from(phases.entries());
+
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
+      {/* Header */}
+      <div
+        className="flex items-center gap-3 px-5 py-4"
+        style={{ background: `linear-gradient(135deg, ${accentColor}12, ${accentColor}22)` }}
+      >
+        <div
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+          style={{ backgroundColor: `${accentColor}25` }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-sm font-bold text-zinc-900">Your 90-Day Launch Plan</h2>
+          <p className="text-xs text-zinc-500">{completedCount} steps across {phaseEntries.length} phases — built from your agent analysis</p>
+        </div>
+        <button
+          type="button"
+          onClick={handlePrint}
+          className="ml-auto flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-700 transition-colors shrink-0"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+          </svg>
+          Download PDF
+        </button>
+      </div>
+      {/* Phase overview */}
+      <div className="px-5 py-4 border-t border-zinc-100">
+        <div className="flex flex-wrap gap-3">
+          {phaseEntries.map(([phase, phaseSteps]) => (
+            <div
+              key={phase}
+              className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium"
+              style={{ backgroundColor: `${accentColor}10`, color: accentColor }}
+            >
+              <span className="font-bold">{phase}</span>
+              <span className="opacity-60">{phaseSteps.length} steps</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function withLegalSelections(content: string, presentation: Presentation): string {
@@ -206,81 +314,12 @@ export function PackagingPanel({
   businessLocation,
 }: PackagingPanelProps) {
   const { brandTheme } = presentation;
-  const [logoLoading, setLogoLoading] = useState(false);
-  const [logoError, setLogoError] = useState<string | null>(null);
-  const [logoModalOpen, setLogoModalOpen] = useState(false);
   const nameSuggestions = deriveNameSuggestions(presentation, outputs.brand?.content ?? "");
-
-  const currentLogoSvg = presentation.brandTemplate?.logoSvg ?? "";
-
-  const handleDownloadSvg = useCallback(() => {
-    if (!currentLogoSvg) return;
-    const blob = new Blob([currentLogoSvg], { type: "image/svg+xml;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${presentation.businessName || "solofirm"}-logo.svg`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    URL.revokeObjectURL(url);
-  }, [currentLogoSvg, presentation.businessName]);
 
   // Ensure AI-suggested font is in the dropdown
   const fontOptions = FONT_OPTIONS.includes(brandTheme.fontFamily)
     ? FONT_OPTIONS
     : [brandTheme.fontFamily, ...FONT_OPTIONS];
-
-  const generateLogo = async () => {
-    setLogoLoading(true);
-    setLogoError(null);
-    try {
-      const res = await fetch("/api/brand/logo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          businessName: presentation.businessName,
-          tagline: presentation.tagline,
-          brandTheme: presentation.brandTheme,
-          logoPrompt: presentation.brandTemplate?.logoPrompt,
-          businessContext: presentation.brandTemplate?.visualDirection,
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error || "Logo generation failed");
-      }
-      const data = await res.json();
-      if (data?.svg) {
-        onPresentationChange({
-          ...presentation,
-          brandTemplate: {
-            ...(presentation.brandTemplate ?? {}),
-            logoSvg: data.svg,
-          },
-        });
-        setLogoModalOpen(true);
-      } else {
-        throw new Error("No SVG was returned by the logo service");
-      }
-    } catch (err) {
-      const fallbackSvg = buildFallbackLogoSvg(presentation);
-      onPresentationChange({
-        ...presentation,
-        brandTemplate: {
-          ...(presentation.brandTemplate ?? {}),
-          logoSvg: fallbackSvg,
-        },
-      });
-      setLogoError(err instanceof Error ? err.message : "Could not generate logo from API; fallback logo created.");
-      setLogoModalOpen(true);
-    } finally {
-      setLogoLoading(false);
-    }
-  };
-
-  // Gate logo: require business name to be set before generating
-  const canGenerateLogo = presentation.businessName.trim().length > 0;
 
   // Google Fonts URL for live preview
   const fontUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(brandTheme.fontFamily)}:wght@400;600;700;800&display=swap`;
@@ -291,7 +330,17 @@ export function PackagingPanel({
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <link rel="stylesheet" href={fontUrl} />
 
-      {/* ── HERO: 90-Day Roadmap ── */}
+      {/* ── HERO: 90-Day Launch Plan (Planner output) ── */}
+      {presentation.roadmap && presentation.roadmap.length > 0 && (
+        <LaunchPlanPanel
+          steps={presentation.roadmap}
+          businessName={presentation.businessName}
+          accentColor={brandTheme.accentColor}
+          plannerContent={outputs.planner?.content}
+        />
+      )}
+
+      {/* ── Roadmap Timeline ── */}
       {presentation.roadmap && presentation.roadmap.length > 0 && (
         <div
           className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-sm"
@@ -309,8 +358,9 @@ export function PackagingPanel({
             }
             businessStructureOptions={["LLC", "S-Corp", "C-Corp", "Sole Proprietorship", "Not sure"]}
             businessState={businessLocation}
+            runId={runId ?? undefined}
             onViewAgent={(agentId) => {
-              if (runId) window.open(`/results/${runId}#agent-card-${agentId}`, "_blank");
+              document.getElementById(`agent-card-${agentId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
             }}
           />
         </div>
@@ -447,19 +497,16 @@ export function PackagingPanel({
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
         <div>
           <p className="text-sm font-medium text-zinc-700">Happy with your roadmap and brand?</p>
-          <p className="text-xs text-zinc-400">Your progress is saved. Finalize to lock in your launch package.</p>
+          <p className="text-xs text-zinc-400">Finalize to lock in your launch package.</p>
         </div>
         <div className="flex items-center gap-3">
-          {runId && (
-            <a
-              href={`/results/${runId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg border border-zinc-200 px-4 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
-            >
-              View agent outputs
-            </a>
-          )}
+          <button
+            type="button"
+            onClick={() => document.getElementById("packaging-agent-outputs")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="rounded-lg border border-zinc-200 px-4 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
+          >
+            View agent outputs ↓
+          </button>
           <button
             type="button"
             onClick={onFinalize}
@@ -471,54 +518,25 @@ export function PackagingPanel({
         </div>
       </div>
 
-      {/* Logo popup */}
-      {logoModalOpen && currentLogoSvg && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-          onClick={() => setLogoModalOpen(false)}
-        >
-          <div
-            className="w-full max-w-4xl rounded-2xl bg-white shadow-2xl overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-3">
-              <div>
-                <p className="text-sm font-semibold text-zinc-900">Generated Logo</p>
-                <p className="text-xs text-zinc-500">Preview and download for immediate use</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setLogoModalOpen(false)}
-                className="rounded-full p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-800"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-6 bg-zinc-50">
-              <div
-                className="rounded-xl border border-zinc-200 bg-white p-6 [&>svg]:w-full [&>svg]:h-auto"
-                dangerouslySetInnerHTML={{ __html: currentLogoSvg }}
+      {/* ── Agent output cards (inline — no Supabase needed, exclude planner since it's shown above) ── */}
+      <div id="packaging-agent-outputs" className="grid gap-4 sm:grid-cols-2">
+        {AGENT_IDS.filter((id) => id !== "planner").map((id) => {
+          const output = outputs[id];
+          if (!output?.content) return null;
+          const summary = presentation.agentSummaries?.find((s) => s.agentId === id);
+          return (
+            <div key={id} id={`agent-card-${id}`}>
+              <SummaryCard
+                agentId={id}
+                summary={summary ?? { agentId: id, headline: AGENT_META[id].deliverable, bullets: [] }}
+                content={id === "legal" ? withLegalSelections(output.content, presentation) : output.content}
+                brandTheme={presentation.brandTheme}
               />
             </div>
-            <div className="flex justify-end gap-2 border-t border-zinc-100 px-5 py-3">
-              <button
-                type="button"
-                onClick={() => setLogoModalOpen(false)}
-                className="rounded-lg border border-zinc-200 px-4 py-2 text-xs font-medium text-zinc-600"
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                onClick={handleDownloadSvg}
-                className="rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-700"
-              >
-                Download SVG
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          );
+        })}
+      </div>
+
     </div>
   );
 }
@@ -564,29 +582,43 @@ export function ResultsPresentation({ presentation, outputs }: ResultsPresentati
         </div>
       </div>
 
+      {/* 90-Day Launch Plan */}
+      {presentation.roadmap && presentation.roadmap.length > 0 && (
+        <LaunchPlanPanel
+          steps={presentation.roadmap}
+          businessName={presentation.businessName}
+          accentColor={brandTheme.accentColor}
+          plannerContent={outputs.planner?.content}
+        />
+      )}
+
       {/* Roadmap timeline */}
       {presentation.roadmap && presentation.roadmap.length > 0 && (
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-sm">
           <RoadmapTimeline
             steps={presentation.roadmap}
             accentColor={brandTheme.accentColor}
+            onViewAgent={(agentId) => {
+              document.getElementById(`agent-card-${agentId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
           />
         </div>
       )}
 
-      {/* Agent summary cards */}
+      {/* Agent summary cards (exclude planner since it's shown above) */}
       <div className="grid gap-4 sm:grid-cols-2">
-        {AGENT_IDS.map((id) => {
+        {AGENT_IDS.filter((id) => id !== "planner").map((id) => {
           const summary = presentation.agentSummaries.find((s) => s.agentId === id);
           if (!summary || !outputs[id]?.content) return null;
           return (
-            <SummaryCard
-              key={id}
-              agentId={id}
-              summary={summary}
-              content={id === "legal" ? withLegalSelections(outputs[id].content, presentation) : outputs[id].content}
-              brandTheme={brandTheme}
-            />
+            <div key={id} id={`agent-card-${id}`}>
+              <SummaryCard
+                agentId={id}
+                summary={summary}
+                content={id === "legal" ? withLegalSelections(outputs[id].content, presentation) : outputs[id].content}
+                brandTheme={brandTheme}
+              />
+            </div>
           );
         })}
       </div>

@@ -21,6 +21,15 @@ const AGENT_ICONS: Record<AgentId, string> = {
   critic: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
 };
 
+const AGENT_PHOTOS: Partial<Record<AgentId, string>> = {
+  planner: "/agent-planner.png",
+  research: "/agent-research.png",
+  legal: "/agent-legal.png",
+  finance: "/agent-finance.png",
+  brand: "/agent-brand.png",
+  social: "/agent-social.png",
+};
+
 // ── Compact card for the "running" phase (same as before but cleaner) ──
 
 interface AgentCardProps {
@@ -45,9 +54,18 @@ export default function AgentCard({ agentId, status, content, expanded, onToggle
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-3">
             <span className={`mt-1 inline-block h-2.5 w-2.5 shrink-0 rounded-full ${style.dot}`} />
-            <div>
-              <p className="text-sm font-semibold text-zinc-900">{meta.label}</p>
-              <p className="mt-0.5 text-xs text-zinc-500">{meta.deliverable}</p>
+            <div className="flex items-start gap-2">
+              {AGENT_PHOTOS[agentId] && (
+                <img
+                  src={AGENT_PHOTOS[agentId]}
+                  alt={meta.label}
+                  className="h-10 w-10 rounded-lg object-cover shrink-0"
+                />
+              )}
+              <div>
+                <p className="text-sm font-semibold text-zinc-900">{meta.label}</p>
+                <p className="mt-0.5 text-xs text-zinc-500">{meta.deliverable}</p>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -94,26 +112,34 @@ export function SummaryCard({ agentId, summary, content, brandTheme }: SummaryCa
 
   return (
     <div className="group rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden transition-all hover:shadow-md">
-      {/* Header with icon */}
+      {/* Header with photo or icon */}
       <div className="px-5 pt-5 pb-4">
         <div className="flex items-start gap-3">
-          <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-            style={{ backgroundColor: `${accentColor}15` }}
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke={accentColor}
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          {AGENT_PHOTOS[agentId] ? (
+            <img
+              src={AGENT_PHOTOS[agentId]}
+              alt={meta.label}
+              className="h-16 w-16 rounded-xl object-cover shrink-0"
+            />
+          ) : (
+            <div
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl"
+              style={{ backgroundColor: `${accentColor}15` }}
             >
-              <path d={iconPath} />
-            </svg>
-          </div>
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke={accentColor}
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d={iconPath} />
+              </svg>
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{meta.label}</p>
             <p className="mt-0.5 text-sm font-semibold text-zinc-900 leading-snug">{summary.headline}</p>

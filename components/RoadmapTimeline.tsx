@@ -61,7 +61,7 @@ const SOS_URLS: Record<string, Record<string, string>> = {
 const EIN_URL = "https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online";
 
 function isEntityStep(step: RoadmapStep): boolean {
-  return /register|llc|incorporate|articles|formation|entity|business structure/i.test(step.title + " " + step.id);
+  return /register.*business|file.*llc|incorporate|articles.*organization|business formation|\bentity\b|business structure/i.test(step.title + " " + step.id);
 }
 
 function isEINStep(step: RoadmapStep): boolean {
@@ -85,6 +85,7 @@ interface RoadmapTimelineProps {
   onBusinessStructureChange?: (value: string) => void;
   businessStructureOptions?: string[];
   businessState?: string;
+  runId?: string;
 }
 
 // Group steps by phase
@@ -109,11 +110,14 @@ export default function RoadmapTimeline({
   onBusinessStructureChange,
   businessStructureOptions,
   businessState,
+  runId,
 }: RoadmapTimelineProps) {
-  // Track which steps the user has checked off (persisted to localStorage)
+  const storageKey = runId ? `solofirm_roadmap_${runId}` : "solofirm_roadmap_progress";
+
+  // Track which steps the user has checked off (persisted to localStorage per run)
   const [completed, setCompleted] = useState<Set<string>>(() => {
     try {
-      const saved = localStorage.getItem("solofirm_roadmap_progress");
+      const saved = localStorage.getItem(storageKey);
       return saved ? new Set(JSON.parse(saved)) : new Set();
     } catch {
       return new Set();
@@ -127,7 +131,7 @@ export default function RoadmapTimeline({
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      try { localStorage.setItem("solofirm_roadmap_progress", JSON.stringify([...next])); } catch { /* ignore */ }
+      try { localStorage.setItem(storageKey, JSON.stringify([...next])); } catch { /* ignore */ }
       return next;
     });
   };

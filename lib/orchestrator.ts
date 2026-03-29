@@ -267,89 +267,147 @@ function isError(content: string) {
   return content.startsWith("[") && content.includes("error");
 }
 
-const SYNTHESIS_PROMPT = `You are a brand synthesis engine. Given a complete business launch package from 7 specialist agents, extract a cohesive presentation layer AND a structured roadmap.
+// ── Planner task extraction ──────────────────────────────────────────────────
+
+interface PlannerTask {
+  title: string;
+  week: string;
+  phase: string;
+  detail: string;
+}
+
+function extractPlannerTasks(plannerOutput: string): PlannerTask[] {
+  const tasks: PlannerTask[] = [];
+  let currentWeek = "Week 1";
+  let currentPhase = "Foundation";
+
+  // Map week ranges to phases
+  const phaseForWeek = (w: string): string => {
+    const num = parseInt(w.match(/\d+/)?.[0] ?? "1");
+    if (num <= 2) return "Foundation";
+    if (num <= 5) return "Build";
+    if (num <= 8) return "Launch";
+    return "Grow";
+  };
+
+  const lines = plannerOutput.split("\n");
+  for (const line of lines) {
+    // Detect week headers: "### Week 1-2: Foundation" or "### Week 3-4"
+    const weekMatch = line.match(/^#{1,4}\s*Week\s*(\d[\d\-–]*)/i);
+    if (weekMatch) {
+      currentWeek = `Week ${weekMatch[1].replace("–", "-")}`;
+      currentPhase = phaseForWeek(currentWeek);
+      // Also pick up phase from header if present: "### Week 1-2: Foundation"
+      const phaseInHeader = line.match(/:\s*(.+)/);
+      if (phaseInHeader) {
+        const p = phaseInHeader[1].trim();
+        if (/found|setup|admin|legal/i.test(p)) currentPhase = "Foundation";
+        else if (/brand|product|build|develop/i.test(p)) currentPhase = "Build";
+        else if (/launch|market|content|outreach/i.test(p)) currentPhase = "Launch";
+        else if (/grow|scale|optim|custom/i.test(p)) currentPhase = "Grow";
+      }
+      continue;
+    }
+
+    // Detect phase-only headers: "### Foundation", "### Growth"
+    const phaseMatch = line.match(/^#{1,4}\s*(Foundation|Build|Launch|Grow|Growth|Scale|Marketing|Brand|Product|Legal|Financial)/i);
+    if (phaseMatch && !weekMatch) {
+      const p = phaseMatch[1];
+      if (/found|legal|financial/i.test(p)) currentPhase = "Foundation";
+      else if (/brand|product|build/i.test(p)) currentPhase = "Build";
+      else if (/launch|market/i.test(p)) currentPhase = "Launch";
+      else if (/grow|scale/i.test(p)) currentPhase = "Grow";
+      continue;
+    }
+
+    // Extract tasks from checkbox lines or bullet points
+    const taskMatch = line.match(/^[-*]\s*(?:\[[ x]\]\s*)?(.{10,})/);
+    if (taskMatch) {
+      const text = taskMatch[1].trim();
+      // Skip items that are clearly sub-details (too short, start with lowercase, or are URLs)
+      if (text.length < 15 || /^https?:\/\//.test(text)) continue;
+      tasks.push({
+        title: text.replace(/\*\*/g, "").slice(0, 120),
+        week: currentWeek,
+        phase: currentPhase,
+        detail: text,
+      });
+    }
+  }
+
+  return tasks;
+}
+
+// ── Synthesis prompt ─────────────────────────────────────────────────────────
+
+const SYNTHESIS_PROMPT = `You are a brand synthesis engine. Given a business launch package from specialist agents AND a pre-extracted list of planner tasks, produce a cohesive presentation JSON.
 
 CRITICAL: Return ONLY a valid JSON object — no markdown, no explanation, no preamble.
 
 {
-  "businessName": "The best business name from the Brand Agent output (or generate one if none exists)",
-  "nameSuggestions": ["Name option 1", "Name option 2", "Name option 3", "Name option 4", "Name option 5"],
-  "tagline": "The best tagline from the Brand Agent output",
-  "selectedBusinessStructure": "One of: LLC, S-Corp, C-Corp, Sole Proprietorship",
+  "businessName": "Best name from Brand Agent (or generate one)",
+  "nameSuggestions": ["Name 1", "Name 2", "Name 3", "Name 4", "Name 5"],
+  "tagline": "Best tagline from Brand Agent",
+  "selectedBusinessStructure": "LLC | S-Corp | C-Corp | Sole Proprietorship",
   "brandTheme": {
-    "primaryColor": "#hex from brand package color palette",
-    "secondaryColor": "#hex from brand package",
-    "accentColor": "#hex from brand package",
-    "fontFamily": "The heading font recommendation from brand package"
+    "primaryColor": "#hex",
+    "secondaryColor": "#hex",
+    "accentColor": "#hex",
+    "fontFamily": "Font name"
   },
   "brandTemplate": {
-    "voice": "2-3 words that define brand voice",
+    "voice": "2-3 words",
     "pillars": ["pillar 1", "pillar 2", "pillar 3"],
-    "taglineVariants": ["variant 1", "variant 2", "variant 3"],
-    "visualDirection": "1-2 sentences describing visual style",
-    "logoPrompt": "A production-ready prompt for an AI image/logo model"
+    "taglineVariants": ["v1", "v2", "v3"],
+    "visualDirection": "1-2 sentences",
+    "logoPrompt": "Detailed AI logo generation prompt"
   },
   "agentSummaries": [
-    {
-      "agentId": "planner",
-      "headline": "One punchy sentence summarizing the planner's key output",
-      "bullets": ["Key takeaway 1", "Key takeaway 2", "Key takeaway 3"]
-    },
-    { "agentId": "research", "headline": "...", "bullets": ["...", "...", "..."] },
-    { "agentId": "legal", "headline": "...", "bullets": ["...", "...", "..."] },
-    { "agentId": "finance", "headline": "...", "bullets": ["...", "...", "..."] },
-    { "agentId": "brand", "headline": "...", "bullets": ["...", "...", "..."] },
-    { "agentId": "social", "headline": "...", "bullets": ["...", "...", "..."] },
-    { "agentId": "critic", "headline": "...", "bullets": ["...", "...", "..."] }
+    {"agentId": "planner", "headline": "...", "bullets": ["...", "...", "..."]},
+    {"agentId": "research", "headline": "...", "bullets": ["...", "...", "..."]},
+    {"agentId": "legal", "headline": "...", "bullets": ["...", "...", "..."]},
+    {"agentId": "finance", "headline": "...", "bullets": ["...", "...", "..."]},
+    {"agentId": "brand", "headline": "...", "bullets": ["...", "...", "..."]},
+    {"agentId": "social", "headline": "...", "bullets": ["...", "...", "..."]},
+    {"agentId": "critic", "headline": "...", "bullets": ["...", "...", "..."]}
   ],
+  "derivedFromPlanner": true,
   "roadmap": [
     {
-      "id": "choose-entity",
-      "title": "Choose Your Business Structure",
-      "week": "Week 1",
-      "phase": "Foundation",
-      "why": "One sentence on why this matters — specific to THIS business",
-      "prepared": "What the launch package already provides (e.g., 'LLC vs S-Corp comparison table in your Legal Package')",
-      "action": "Exact next step with specifics (e.g., 'File Articles of Organization at sos.texas.gov — $300 filing fee')",
-      "actionUrl": "https://direct-link-if-applicable.gov",
-      "agentId": "legal",
-      "estimatedTime": "30 minutes",
-      "cost": "$300"
+      "id": "kebab-case-id",
+      "title": "Specific actionable task title",
+      "week": "Week N",
+      "phase": "Foundation | Build | Launch | Grow",
+      "why": "Business-specific reason",
+      "prepared": "What the launch package already provides for this step",
+      "action": "Exact next physical step with specifics",
+      "actionUrl": "https://...",
+      "agentId": "planner",
+      "sourceAgent": "planner",
+      "estimatedTime": "15 minutes",
+      "cost": "Free"
     }
   ]
 }
 
-Rules for agentSummaries:
-- businessName: Use the brand agent's top name recommendation. If none, invent a memorable one.
-- nameSuggestions: Provide 4-6 strong options the founder can choose from. Include businessName as one option.
-- tagline: Use the brand agent's top tagline pick.
-- selectedBusinessStructure: Pick the best recommendation based on Legal + Finance outputs.
-- brandTheme colors: Extract exact hex codes from brand package. If unavailable, pick professional defaults.
-- fontFamily: Use the heading font from the brand package.
-- brandTemplate: Keep it concise and practical (voice, 3 pillars, 3 tagline variants, visual direction, and a detailed logoPrompt for AI generation).
-- Each headline should be exciting and specific — NOT generic. Reference the actual business.
-- Each bullet: a concrete fact or deliverable, max 15 words.
+ROADMAP RULES (CRITICAL — roadmap must come from the planner tasks provided):
+- A pre-extracted list of planner tasks is provided in the input under "--- Planner-Derived Task Candidates ---".
+- You MUST use these tasks as your primary source. Convert each viable task into a roadmap step.
+- Keep every task that is actionable and specific. Drop only true duplicates or vague sub-details.
+- For each task, enrich it with: why (specific to this business), prepared (what's in the launch package), action (exact next step), estimated time, cost.
+- Map tasks to exactly 4 phases: Foundation (admin/legal), Build (brand/product/website), Launch (content/outreach/soft launch), Grow (customers/revenue/scale).
+- Output 12-20 roadmap steps total, in chronological order.
+- "sourceAgent" should be "planner" for planner-derived tasks. If you add a step from another agent, set sourceAgent accordingly.
+- Each step id must be a unique kebab-case string.
+- NEVER invent generic placeholder steps. Every step must trace back to a specific agent deliverable.
+
+AGENT SUMMARIES RULES:
 - Include ALL 7 agents in order: planner, research, legal, finance, brand, social, critic.
-
-Rules for roadmap (VERY IMPORTANT — this is the user's step-by-step journey):
-- Extract 12-18 discrete action steps from the Planner, Legal, Finance, Brand, and Social agents.
-- Steps must be in chronological order (Week 1 first, Week 12 last).
-- Each step must be a SINGLE concrete action, not a category. "Register LLC in Texas" not "Handle legal stuff".
-- "why" must be specific to this business — not generic advice.
-- "prepared" must reference what's already in their launch package. E.g., "Your Legal Package includes a draft Articles of Organization template" or "See Financial Setup Guide for bank comparison table".
-- "action" must be the EXACT next physical step. Include specific websites, costs, timelines.
-- "actionUrl" should be the direct URL where they can take action (government websites, signup pages, etc.). Omit if no direct URL.
-- "agentId" links to which agent's deliverable is most relevant for this step.
-- "estimatedTime" — how long this step takes (e.g., "15 minutes", "1-3 business days").
-- "cost" — what it costs, if anything. Use "Free" for free steps.
-
-PHASE CONSTRAINTS (strict):
-- Week 1 MUST include ALL administrative setup: entity registration, EIN, bank account, domain purchase, Google Business Profile creation, and social media account creation. These are simple tasks — compress them into Week 1.
-- For social account setup: include one step per platform (Instagram, Facebook/Meta, X/Twitter, LinkedIn, TikTok — whichever are relevant). Action should say "Create [platform] business account using [business email]" with direct signup URL. Also include a step to set up Buffer (buffer.com) or Later for scheduling posts across all platforms.
-- Weeks 2-4: Brand assets, website, initial content creation.
-- Weeks 5-12: Growth execution — outreach, first customers, content cadence, metrics tracking, iteration.
-- Cover these phases in order: Foundation (entity, EIN, bank, domain, accounts — ALL in Week 1), Product & Brand (website, brand assets), Marketing & Launch (content, soft launch), Growth (first customers, metrics, iteration).
-- The first 5-6 steps should be things they can do TODAY in under 30 minutes each.`;
+- Each headline: exciting, specific to THIS business. Not generic.
+- Each bullet: concrete fact or deliverable, max 15 words.
+- businessName: Use brand agent's top pick. nameSuggestions: 4-6 options.
+- selectedBusinessStructure: Best rec from Legal + Finance.
+- brandTheme: Extract hex codes from brand package.`;
 
 async function synthesizePresentation(
   outputs: Record<AgentId, AgentOutput>,
@@ -396,9 +454,19 @@ async function synthesizePresentation(
   }
 
   const agentIds: AgentId[] = ["planner", "research", "legal", "finance", "brand", "social", "critic"];
-  const summaryInput = agentIds
-    .map((id) => `--- ${AGENT_META[id].label} Output ---\n${outputs[id].content.slice(0, 2000)}`)
-    .join("\n\n");
+  const businessContext = buildBusinessContext(intake);
+
+  // Extract structured tasks from planner output as canonical roadmap source
+  const plannerTasks = extractPlannerTasks(outputs.planner?.content ?? "");
+  const taskCandidates = plannerTasks.length > 0
+    ? `\n\n--- Planner-Derived Task Candidates (USE THESE AS ROADMAP SOURCE) ---\n${plannerTasks.map((t, i) => `${i + 1}. [${t.phase} / ${t.week}] ${t.title}`).join("\n")}`
+    : "";
+
+  const summaryInput = `${businessContext}\n\n` + agentIds
+    .map((id) => `--- ${AGENT_META[id].label} Output ---\n${outputs[id].content.slice(0, 3500)}`)
+    .join("\n\n") + taskCandidates;
+
+  emit({ type: "synthesis_started", timestamp: now() });
 
   try {
     const openai = getOpenAI();
@@ -408,7 +476,7 @@ async function synthesizePresentation(
         { role: "system", content: SYNTHESIS_PROMPT },
         { role: "user", content: summaryInput },
       ],
-      max_tokens: 4000,
+      max_tokens: 6000,
     });
 
     const raw = response.choices?.[0]?.message?.content ?? "";
@@ -466,7 +534,7 @@ async function synthesizePresentation(
       { id: "apply-ein", title: "Apply for an EIN", week: "Week 1", phase: "Foundation", why: "Required for business banking, hiring, and tax filing.", prepared: "Your Financial Setup Guide has step-by-step EIN instructions.", action: "Apply online at irs.gov — instant approval.", actionUrl: "https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online", agentId: "finance", estimatedTime: "10 minutes", cost: "Free" },
       { id: "open-bank", title: "Open a Business Bank Account", week: "Week 2", phase: "Foundation", why: "Separates personal and business finances from day one.", prepared: "Your Financial Setup Guide compares 5 banks with pricing.", action: "Pick a bank from the comparison table and apply online.", agentId: "finance", estimatedTime: "20 minutes", cost: "Free" },
       { id: "setup-brand", title: "Finalize Brand Identity", week: "Week 3-4", phase: "Brand", why: "Consistent branding builds trust before you have customers.", prepared: "Your Brand Package has colors, fonts, logo concepts, and messaging.", action: "Hand the Brand Package to a designer or use Canva to build assets.", agentId: "brand", estimatedTime: "2-3 hours", cost: "Free-$200" },
-      { id: "launch-social", title: "Set Up Social Media Accounts", week: "Week 4-5", phase: "Marketing", why: "Your audience needs to find you before launch day.", prepared: "Your Social Media Kit has bios, content pillars, and a 30-day calendar.", action: "Create accounts using the Account Setup Wizard above.", agentId: "social", estimatedTime: "1 hour", cost: "Free" },
+      { id: "launch-social", title: "Set Up Social Media Accounts", week: "Week 4-5", phase: "Marketing", why: "Your audience needs to find you before launch day.", prepared: "Your Social Media Kit has bios, content pillars, and a 30-day content calendar.", action: "Create business profiles on Instagram, Facebook, and LinkedIn using your brand colors and bio from the Social Media Kit.", agentId: "social", estimatedTime: "1 hour", cost: "Free" },
     ],
   };
 
@@ -504,29 +572,8 @@ ${initialNaming.tagline ? `\n\n--- Early Tagline Direction ---\n${initialNaming.
 
   emit({ type: "run_started", run, timestamp: now() });
 
-  // ── Phase 1: Planner (solo — creates the roadmap everything else references) ──
-  const plannerResult = await callAgent("planner", AGENT_PROMPTS.planner, baseContext, emit);
-
-  outputs.planner = {
-    agentId: "planner",
-    status: isError(plannerResult) ? "error" : "complete",
-    content: plannerResult,
-    completedAt: now(),
-  };
-
-  emit({ type: "phase_complete", phase: 1, timestamp: now() });
-
-  // ── Phase 2: Research + Legal + Finance (parallel, gated on Planner) ──
-  const phase2Context = `${baseContext}
-
---- Launch Roadmap (from Planner Agent) ---
-${plannerResult}`;
-
-  const [researchResult, legalResult, financeResult] = await Promise.all([
-    callAgent("research", AGENT_PROMPTS.research, phase2Context, emit),
-    callAgent("legal", AGENT_PROMPTS.legal, phase2Context, emit),
-    callAgent("finance", AGENT_PROMPTS.finance, phase2Context, emit),
-  ]);
+  // ── Phase 1: Research (solo — builds market foundation) ──
+  const researchResult = await callAgent("research", AGENT_PROMPTS.research, baseContext, emit);
 
   outputs.research = {
     agentId: "research",
@@ -534,6 +581,20 @@ ${plannerResult}`;
     content: researchResult,
     completedAt: now(),
   };
+
+  emit({ type: "phase_complete", phase: 1, timestamp: now() });
+
+  // ── Phase 2: Legal + Finance (parallel, informed by Research) ──
+  const phase2Context = `${baseContext}
+
+--- Market Intelligence (from Research Agent) ---
+${researchResult}`;
+
+  const [legalResult, financeResult] = await Promise.all([
+    callAgent("legal", AGENT_PROMPTS.legal, phase2Context, emit),
+    callAgent("finance", AGENT_PROMPTS.finance, phase2Context, emit),
+  ]);
+
   outputs.legal = {
     agentId: "legal",
     status: isError(legalResult) ? "error" : "complete",
@@ -549,11 +610,14 @@ ${plannerResult}`;
 
   emit({ type: "phase_complete", phase: 2, timestamp: now() });
 
-  // ── Phase 3: Brand (solo, needs Research for competitive context) ──
+  // ── Phase 3: Brand (informed by Research + Legal + Finance) ──
   const brandContext = `${phase2Context}
 
---- Market Intelligence (from Research Agent) ---
-${researchResult}`;
+--- Legal Package (from Legal Agent) ---
+${legalResult}
+
+--- Financial Setup Guide (from Finance Agent) ---
+${financeResult}`;
 
   const brandResult = await callAgent("brand", AGENT_PROMPTS.brand, brandContext, emit);
 
@@ -566,10 +630,10 @@ ${researchResult}`;
 
   emit({ type: "phase_complete", phase: 3, timestamp: now() });
 
-  // ── Phase 4: Social Media (needs brand for identity context) ──
+  // ── Phase 4: Social Media (informed by Brand + everything so far) ──
   const socialContext = `${brandContext}
 
---- Brand Package (Brand) ---
+--- Brand Package (from Brand Agent) ---
 ${brandResult}`;
 
   const socialResult = await callAgent("social", AGENT_PROMPTS.social, socialContext, emit);
@@ -583,11 +647,8 @@ ${brandResult}`;
 
   emit({ type: "phase_complete", phase: 4, timestamp: now() });
 
-  // ── Phase 5: Critic (reviews everything) ──
-  const criticContext = `${baseContext}
-
---- Launch Roadmap (Planner) ---
-${plannerResult}
+  // ── Phase 5: Planner (runs LAST — synthesizes all previous agents into the definitive 90-day plan) ──
+  const plannerContext = `${baseContext}
 
 --- Market Intelligence (Research) ---
 ${researchResult}
@@ -604,6 +665,38 @@ ${brandResult}
 --- Social Media Launch Kit (Social) ---
 ${socialResult}`;
 
+  const plannerResult = await callAgent("planner", AGENT_PROMPTS.planner, plannerContext, emit);
+
+  outputs.planner = {
+    agentId: "planner",
+    status: isError(plannerResult) ? "error" : "complete",
+    content: plannerResult,
+    completedAt: now(),
+  };
+
+  emit({ type: "phase_complete", phase: 5, timestamp: now() });
+
+  // ── Phase 6: Critic (reviews everything including the completed Plan) ──
+  const criticContext = `${baseContext}
+
+--- Market Intelligence (Research) ---
+${researchResult}
+
+--- Legal Package (Legal) ---
+${legalResult}
+
+--- Financial Setup Guide (Finance) ---
+${financeResult}
+
+--- Brand Package (Brand) ---
+${brandResult}
+
+--- Social Media Launch Kit (Social) ---
+${socialResult}
+
+--- 90-Day Launch Plan (Planner) ---
+${plannerResult}`;
+
   const criticResult = await callAgent("critic", AGENT_PROMPTS.critic, criticContext, emit);
 
   outputs.critic = {
@@ -613,7 +706,7 @@ ${socialResult}`;
     completedAt: now(),
   };
 
-  emit({ type: "phase_complete", phase: 5, timestamp: now() });
+  emit({ type: "phase_complete", phase: 6, timestamp: now() });
 
   // ── Synthesis: derive presentation metadata ──
   const presentation = await synthesizePresentation(outputs, intake, emit);
@@ -649,11 +742,6 @@ ${socialResult}`;
   run.presentation = presentation;
   run.final_output = `# Your Business Launch Package
 
-## 90-Day Launch Roadmap
-${plannerResult}
-
----
-
 ## Market Intelligence
 ${researchResult}
 
@@ -676,6 +764,11 @@ ${brandResult}
 
 ## Social Media Launch Kit
 ${socialResult}
+
+---
+
+## 90-Day Launch Roadmap
+${plannerResult}
 
 ---
 

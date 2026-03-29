@@ -183,6 +183,7 @@ export default function AgentOrchestrator() {
   const [presentation, setPresentation] = useState<Presentation | null>(null);
   const [packagingReady, setPackagingReady] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [synthesizing, setSynthesizing] = useState(false);
 
   // ── Persist state across OAuth redirects ──
   const STORAGE_KEY = "solofirm_run_state";
@@ -499,7 +500,11 @@ export default function AgentOrchestrator() {
               case "phase_complete":
                 setCurrentPhase(event.phase ?? 0);
                 break;
+              case "synthesis_started":
+                setSynthesizing(true);
+                break;
               case "synthesis_complete":
+                setSynthesizing(false);
                 if (event.presentation) {
                   setPresentation(event.presentation);
                 }
@@ -544,6 +549,7 @@ export default function AgentOrchestrator() {
     setPresentation(null);
     setPackagingReady(false);
     setSaving(false);
+    setSynthesizing(false);
     try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
   };
 
@@ -561,7 +567,7 @@ export default function AgentOrchestrator() {
     setStep("complete");
   };
 
-  const phaseLabels = ["Waiting", "Planning", "Research · Legal · Finance", "Brand", "Social Media", "Review"];
+  const phaseLabels = ["Waiting", "Research", "Legal · Finance", "Brand", "Social Media", "Planning", "Review"];
 
   const getAgentDisplayContent = useCallback((agentId: AgentId) => {
     const base = outputs[agentId]?.content ?? "";
@@ -960,6 +966,19 @@ export default function AgentOrchestrator() {
               ))}
             </div>
           </div>
+
+          {/* Synthesis progress indicator */}
+          {synthesizing && (
+            <div className="flex items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4">
+              <svg className="h-5 w-5 animate-spin text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round"/>
+              </svg>
+              <div>
+                <p className="text-sm font-semibold text-blue-900">Synthesizing your launch plan...</p>
+                <p className="text-xs text-blue-600">Building your roadmap from agent outputs</p>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -1029,22 +1048,21 @@ export default function AgentOrchestrator() {
               </div>
             </button>
 
-            {runId && (
-              <a
-                href={`/results/${runId}`}
-                className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:border-zinc-300 transition-colors"
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>
-                  </svg>
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-semibold text-zinc-900">View Full Agent Outputs</p>
-                  <p className="text-xs text-zinc-500">All 7 agent reports in detail</p>
-                </div>
-              </a>
-            )}
+            <button
+              type="button"
+              onClick={() => setStep("packaging")}
+              className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:border-zinc-300 transition-colors text-left"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-zinc-900">View Full Agent Outputs</p>
+                <p className="text-xs text-zinc-500">All 7 agent reports in detail</p>
+              </div>
+            </button>
 
             {runId && (
               <button
