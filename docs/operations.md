@@ -96,7 +96,7 @@ Do **not** cut:
 
 ## 8) Internal benchmark protocol (same-day)
 
-Run 1 smoke benchmark by T+8h, then complete 2 more by T+20h and record all 3 in [docs/benchmark-results-template.md](benchmark-results-template.md):
+Run 1 smoke benchmark by T+8h, then complete 2 more by T+20h and record all 3 in [docs/benchmark-results.md](benchmark-results.md):
 
 1. Start timestamp
 2. Completion timestamp
@@ -105,3 +105,37 @@ Run 1 smoke benchmark by T+8h, then complete 2 more by T+20h and record all 3 in
 5. Notes on failures/recovery
 
 Use these runs as feasibility/impact proof for judging.
+
+## 9) Evidence regeneration protocol (submission lock)
+
+Run these scripts against the active test stack before final submission:
+
+1. `node scripts/run-benchmarks.mjs`
+2. `node scripts/capture-evidence.mjs`
+3. `node scripts/capture-qa-evidence.mjs`
+4. `node scripts/capture-finalize-evidence.mjs`
+5. `node scripts/capture-progress-evidence.mjs`
+6. `node scripts/capture-automation-evidence.mjs`
+
+Expected artifact outputs:
+
+- [docs/benchmark-results.json](benchmark-results.json)
+- [docs/benchmark-results.md](benchmark-results.md)
+- [docs/evidence/sse-transcript.ndjson](evidence/sse-transcript.ndjson)
+- [docs/evidence/run-proof.json](evidence/run-proof.json)
+- [docs/evidence/qa-specificity.json](evidence/qa-specificity.json)
+- [docs/evidence/finalize-persistence.json](evidence/finalize-persistence.json)
+- [docs/evidence/progress-update.json](evidence/progress-update.json)
+- [docs/evidence/automation-events.ndjson](evidence/automation-events.ndjson)
+- [docs/evidence/automation-resume-check.json](evidence/automation-resume-check.json)
+- [docs/evidence/reliability-check.json](evidence/reliability-check.json)
+
+## 10) Documentation quality gate (must pass)
+
+Before freeze, confirm all are true:
+
+- README script names exactly match [package.json](../package.json) scripts.
+- API docs include every active route used in demo flow.
+- Architecture reflects real runtime fallback behavior (Supabase + local store).
+- Evidence links in [docs/evidence-pack.md](evidence-pack.md) resolve to existing files.
+- Judge mapping in [docs/submission-pack.md](submission-pack.md) matches latest metrics.

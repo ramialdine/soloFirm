@@ -37,6 +37,15 @@ Use this file as the final judge-facing validation list.
 - [x] API docs match implemented endpoints
 - [x] Architecture doc reflects current runtime
 - [x] Operations runbook used in rehearsal
+- [x] Judge-facing rubric-to-proof mapping exists
+
+### Documentation scoring evidence (direct links)
+
+- README parity anchor: [README.md](../README.md)
+- API contract parity: [docs/api.md](api.md)
+- Runtime and reliability architecture: [docs/architecture.md](architecture.md)
+- Reproducible ops and evidence protocol: [docs/operations.md](operations.md)
+- Rubric mapping packet: [docs/submission-pack.md](submission-pack.md)
 
 ## Linked artifacts
 
@@ -58,4 +67,5 @@ Include these files in final review:
 3. [docs/architecture.md](architecture.md)
 4. [docs/api.md](api.md)
 5. [docs/operations.md](operations.md)
-6. Benchmark results file (create before final submission)
+6. [docs/submission-pack.md](submission-pack.md)
+7. [docs/benchmark-results.md](benchmark-results.md)
