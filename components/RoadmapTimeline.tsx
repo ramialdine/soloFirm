@@ -175,11 +175,7 @@ export default function RoadmapTimeline({
   const phaseGroups = groupByPhase(steps);
 
   const resolvedState = extractState(businessState);
-  const canFillPdf =
-    resolvedState &&
-    FORM_FILL_STATES.has(resolvedState) &&
-    (!selectedBusinessStructure || selectedBusinessStructure === "LLC" || selectedBusinessStructure === "Not sure") &&
-    businessName;
+  const canFillPdf = resolvedState && FORM_FILL_STATES.has(resolvedState) && businessName;
 
   const handleDownloadPdf = async () => {
     if (!businessName || !resolvedState) return;
