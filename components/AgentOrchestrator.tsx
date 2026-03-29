@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from "react";
 import AgentCard from "./AgentCard";
 import OutputPanel, { PackagingPanel } from "./OutputPanel";
+import AutomationPanel from "./AutomationPanel";
 import { MarkdownBody } from "./OutputPanel";
 import type {
   AgentId,
@@ -18,7 +19,7 @@ import { AGENT_META } from "@/types/agents";
 
 const AGENT_IDS: AgentId[] = ["planner", "research", "legal", "finance", "brand", "social", "critic"];
 
-type Step = "intake" | "qa" | "running" | "packaging" | "complete";
+type Step = "intake" | "qa" | "running" | "packaging" | "complete" | "automation";
 
 const STAGES = [
   { value: "Solo", label: "Solo founder" },
@@ -68,9 +69,9 @@ interface QuestionCardProps {
   index: number;
   roundIndex: number; // offset for display numbering
   question: QAQuestion;
-  selected: string | undefined;
+  selected: string[];
   otherValue: string;
-  onSelect: (answer: string) => void;
+  onToggle: (answer: string) => void;
   onOtherChange: (val: string) => void;
 }
 
@@ -80,34 +81,29 @@ function QuestionCard({
   question,
   selected,
   otherValue,
-  onSelect,
+  onToggle,
   onOtherChange,
 }: QuestionCardProps) {
   const displayNum = roundIndex + index + 1;
   const options = [...question.options, "Other — tell me more", "I don't know"];
-  const isOtherSelected = selected === "__other__";
+  const isOtherSelected = selected.includes("__other__");
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <p className="mb-4 text-sm font-medium text-zinc-500">Question {displayNum}</p>
-      <p className="mb-5 text-base font-semibold text-zinc-900 leading-snug">{question.question}</p>
+      <p className="mb-1 text-sm font-medium text-zinc-500">Question {displayNum}</p>
+      <p className="mb-1 text-base font-semibold text-zinc-900 leading-snug">{question.question}</p>
+      <p className="mb-4 text-xs text-zinc-400">Select all that apply</p>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {options.map((opt, j) => {
-          const isSelected =
-            j === 3 ? isOtherSelected : selected === opt;
+          const key = j === 3 ? "__other__" : opt;
+          const isSelected = selected.includes(key);
 
           return (
             <button
               key={j}
               type="button"
-              onClick={() => {
-                if (j === 3) {
-                  onSelect("__other__");
-                } else {
-                  onSelect(opt);
-                }
-              }}
+              onClick={() => onToggle(key)}
               className={`group flex items-start gap-3 rounded-xl border-2 px-4 py-3 text-left text-sm transition-all ${
                 isSelected
                   ? "border-blue-500 bg-blue-50 text-blue-900"
@@ -115,13 +111,13 @@ function QuestionCard({
               }`}
             >
               <span
-                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-xs font-bold transition-colors ${
                   isSelected
                     ? "bg-blue-500 text-white"
                     : "bg-zinc-100 text-zinc-500 group-hover:bg-zinc-200"
                 }`}
               >
-                {OPTION_LETTERS[j]}
+                {isSelected ? "✓" : OPTION_LETTERS[j]}
               </span>
               <span className="leading-snug">{opt}</span>
             </button>
@@ -138,7 +134,7 @@ function QuestionCard({
               onOtherChange(e.target.value);
             }}
             onBlur={() => {
-              if (!otherValue.trim()) onSelect("__other__");
+              if (!otherValue.trim()) onToggle("__other__");
             }}
             placeholder="Describe your situation…"
             autoFocus
@@ -169,7 +165,7 @@ export default function AgentOrchestrator() {
   // Q&A state
   const [qaRound, setQaRound] = useState<1 | 2>(1);
   const [qaQuestions, setQaQuestions] = useState<QAQuestion[]>([]);
-  const [qaAnswers, setQaAnswers] = useState<Record<number, string>>({});
+  const [qaAnswers, setQaAnswers] = useState<Record<number, string[]>>({});
   const [qaOtherValues, setQaOtherValues] = useState<Record<number, string>>({});
   const [qaHistory, setQaHistory] = useState<QAHistoryEntry[]>([]);
   const [qaLoading, setQaLoading] = useState(false);
@@ -204,14 +200,16 @@ export default function AgentOrchestrator() {
     });
   };
 
-  // Resolve the display value for an answer (replace __other__ with the typed value)
+  // Resolve the display value for an answer — joins multi-select choices
   const resolveAnswer = (qIndex: number): string => {
-    const ans = qaAnswers[qIndex];
-    if (ans === "__other__") return qaOtherValues[qIndex]?.trim() ?? "";
-    return ans ?? "";
+    const selections = qaAnswers[qIndex] ?? [];
+    return selections
+      .map((s) => (s === "__other__" ? qaOtherValues[qIndex]?.trim() ?? "" : s))
+      .filter(Boolean)
+      .join("; ");
   };
 
-  // All current questions have a non-empty answer
+  // All current questions have at least one non-empty selection
   const allAnswered =
     qaQuestions.length > 0 &&
     qaQuestions.every((_, i) => resolveAnswer(i).trim() !== "");
@@ -789,13 +787,24 @@ export default function AgentOrchestrator() {
                   index={i}
                   roundIndex={qaRound === 2 ? qaHistory.length : 0}
                   question={q}
-                  selected={qaAnswers[i]}
+                  selected={qaAnswers[i] ?? []}
                   otherValue={qaOtherValues[i] ?? ""}
-                  onSelect={(answer) => setQaAnswers((prev) => ({ ...prev, [i]: answer }))}
+                  onToggle={(answer) =>
+                    setQaAnswers((prev) => {
+                      const current = prev[i] ?? [];
+                      const next = current.includes(answer)
+                        ? current.filter((a) => a !== answer)
+                        : [...current, answer];
+                      return { ...prev, [i]: next };
+                    })
+                  }
                   onOtherChange={(val) => {
                     setQaOtherValues((prev) => ({ ...prev, [i]: val }));
-                    // Keep selected as __other__ to track it
-                    setQaAnswers((prev) => ({ ...prev, [i]: "__other__" }));
+                    setQaAnswers((prev) => {
+                      const current = prev[i] ?? [];
+                      if (!current.includes("__other__")) return { ...prev, [i]: [...current, "__other__"] };
+                      return prev;
+                    });
                   }}
                 />
               ))}
@@ -975,7 +984,41 @@ export default function AgentOrchestrator() {
               </div>
             </div>
           )}
+
+          {/* Account setup CTA */}
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-lg">🚀</div>
+              <div className="flex-1">
+                <p className="font-semibold text-zinc-900">Create your accounts automatically</p>
+                <p className="mt-1 text-sm text-zinc-500">
+                  Your Social Media launch kit is ready. Let an AI agent open Gmail and Instagram, fill in your details, and set up your accounts — you only need to verify your phone.
+                </p>
+                <button
+                  onClick={() => setStep("automation")}
+                  className="mt-3 flex items-center gap-2 rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-700"
+                >
+                  Start Guided Setup →
+                </button>
+              </div>
+            </div>
+          </div>
         </>
+      )}
+
+      {/* ══════════════════════════════════════════════════════ */}
+      {/* STEP 6: AUTOMATION — browser account setup           */}
+      {/* ══════════════════════════════════════════════════════ */}
+      {step === "automation" && (
+        <div className="space-y-2">
+          <button
+            onClick={() => setStep("complete")}
+            className="flex items-center gap-1 text-sm text-zinc-400 hover:text-zinc-700 mb-2"
+          >
+            ← Back to results
+          </button>
+          <AutomationPanel businessName={intake.businessIdea.split(" ").slice(0, 3).join(" ")} />
+        </div>
       )}
 
       {/* ── Agent output modal ── */}
