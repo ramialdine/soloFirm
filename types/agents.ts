@@ -122,6 +122,8 @@ export interface Presentation {
   nameSuggestions?: string[];
   tagline: string;
   selectedBusinessStructure?: string;
+  location?: string; // founder's state/location from intake (used for PDF form filling & SoS links)
+  teamSize?: string; // founder's team size from intake (used for PDF form filling)
   derivedFromPlanner?: boolean; // true when roadmap was extracted from planner output
   planDocument?: string; // composed full document from all 7 agents
   brandTheme: {

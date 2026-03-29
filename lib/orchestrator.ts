@@ -848,6 +848,10 @@ ${plannerResult}`;
       ])
     );
     presentation.nameSuggestions = merged.slice(0, 8);
+
+    // Carry intake location + teamSize so roadmap pages can resolve SoS URLs and PDF form filling
+    presentation.location = intake.location || undefined;
+    presentation.teamSize = intake.teamSize || undefined;
   }
 
   // ── Finalize ──

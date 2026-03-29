@@ -40,6 +40,9 @@ export default function RoadmapPageClient({
             "Not sure",
           ]}
           runId={runId}
+          businessState={presentation.location}
+          businessName={presentation.businessName}
+          teamSize={presentation.teamSize}
         />
       </div>
     </div>
