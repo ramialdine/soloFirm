@@ -911,7 +911,5 @@ ${criticResult}`;
   run.status = hasErrors ? "partial" : "complete";
   run.completed_at = now();
 
-  emit({ type: "run_complete", run, timestamp: now() });
-
   return run;
 }

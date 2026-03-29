@@ -1047,11 +1047,11 @@ export default function AgentOrchestrator() {
                 <h3 className="text-sm font-semibold text-zinc-800 mb-3">Pick a business name</h3>
                 {brandSuggestions.length > 0 && (
                   <div className="grid gap-2 sm:grid-cols-2 mb-3">
-                    {brandSuggestions.map((name) => {
+                    {brandSuggestions.map((name, index) => {
                       const selected = brandName === name;
                       return (
                         <button
-                          key={name}
+                          key={`${name}-${index}`}
                           type="button"
                           onClick={() => setBrandName(name)}
                           className={`rounded-xl border px-4 py-2.5 text-left text-sm font-medium transition-colors ${
@@ -1189,7 +1189,7 @@ export default function AgentOrchestrator() {
               <h3 className="text-sm font-medium text-zinc-700">Agents</h3>
               <p className="text-xs text-zinc-400">Click any card to view full output</p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {AGENT_IDS.map((id) => (
                 <AgentCard
                   key={id}

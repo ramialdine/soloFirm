@@ -46,6 +46,15 @@ By submission, SoloFirm must prove this sentence with evidence:
 
 If this sentence is unproven, score ceiling drops materially.
 
+### Founder persona vignette (grounding)
+
+**Sarah (31), first-time founder, Providence RI**
+
+- Launching a local service business while working full-time.
+- Current pain: unclear order of legal/finance/brand setup, high context-switching, and form fatigue.
+- Baseline assumption: 2-3 weeks of fragmented setup work.
+- SoloFirm target: actionable launch checklist and first setup action started within 30 minutes.
+
 ---
 
 ## 3) Product truth (north-star and metric)
@@ -82,6 +91,20 @@ $$
 
 ### Deferred
 - Billing, multi-tenant RBAC, enterprise controls.
+
+### Real vs simulated automation statement
+
+- **Real now:** API/OAuth-backed actions for connected provider paths (for example Google Business and YouTube account setup routes).
+- **Simulated fallback:** when provider automation is blocked/unavailable, the system runs guided manual mode with explicit next actions and preserved progress state.
+- **Judge-standard claim:** differentiation proof requires at least one real action path in demo.
+
+## 4.1 Competitor matrix (explicit)
+
+| Competitor | Strength | SoloFirm advantage | SoloFirm weakness |
+|---|---|---|---|
+| ChatGPT / Claude (general LLMs) | Flexible ideation and drafting | Structured orchestration + persisted run state + execution hooks | Less open-ended creative breadth |
+| LivePlan / business-plan tools | Formal planning templates | Actionable checklist + agent-specific guidance + automation initiation | Less polished long-form plan templates |
+| Zapier / Make / relay-style automation tools | Workflow automation breadth | Founder-specific launch intelligence + legal/finance/brand context synthesis | Smaller integration catalog today |
 
 ---
 
@@ -205,6 +228,36 @@ Create `benchmark-results.md` with raw table and computed metrics.
 | Image generation invalid output | Medium | Medium | SVG/data URL validation | branded fallback visual |
 | Late scope creep | High | High | strict Must/Should/Deferred gates | freeze at T-4h |
 
+### Deterministic parser fallback (for roadmap quality)
+
+If model JSON is invalid after one retry, fallback logic:
+
+1. Extract bullet/action lines from each agent output with regex + heading segmentation.
+2. Normalize to action-first tasks (`verb + object`) and discard vague fragments.
+3. Assign default phase/week by source agent map.
+4. Enforce minimum fields (`title`, `action`, `why`, `sourceAgent`) before admission.
+5. If fewer than threshold tasks remain, surface partial mode with explicit warning.
+
+This ensures the user still receives actionable checklist output when LLM formatting fails.
+
+### T-4h hard cut order
+
+If behind at T-4h, cut in this order:
+
+1. Cosmetic UI polish.
+2. Nice-to-have integrations beyond core run read/export APIs.
+3. Optional automation enhancements that do not affect the primary proof path.
+
+Never cut: end-to-end run stability, roadmap quality, evidence artifacts, and demo reliability.
+
+## 10.1 Scalability table (explicit)
+
+| Tier | Runtime model | Stream model | Data model | Automation model |
+|---|---|---|---|---|
+| Today | single-process orchestrator | direct SSE | shared `runs` table | single sidecar |
+| 100 users | queue-backed workers | resumable SSE with checkpoints | indexed run queries | sidecar pool |
+| 10,000 users | distributed worker fleet | event bus + stream gateway | partition/retention strategy | provider-specific worker shards |
+
 ---
 
 ## 11) Execution schedule (ASAP clock)
@@ -231,6 +284,14 @@ Create `benchmark-results.md` with raw table and computed metrics.
 ### T+20 to T+24h
 - Demo rehearsal x3.
 - Freeze and ship.
+
+## 11.1 Ownership table
+
+| Owner | Primary scope | Acceptance test |
+|---|---|---|
+| Engineer A (Frontend) | Orchestrator flow, roadmap UI, plan navigation | Run completes and user can move plan -> roadmap without dead state |
+| Engineer B (Backend/AI) | Orchestration synthesis, QA reliability, run APIs | `/api/orchestrate`, `/api/runs/:id`, `/api/runs/export` pass smoke tests |
+| Engineer C (Infra/Automation) | Sidecar reliability and action proof path | One automation session starts and emits lifecycle events |
 
 ---
 
@@ -295,10 +356,10 @@ If these six artifacts are present, the plan moves from "credible" to "verified.
 
 ## 19) Validation Protocol (replace assumptions with measured results)
 
-### Pilot design (same-day, lightweight)
-- Sample: **10 founders** (or founder-like users).
-- Task: complete one launch run and start one setup action.
-- Capture automatically from existing telemetry + short survey.
+### Internal benchmark design (same-day, realistic)
+- Sample: **3 internal benchmark runs** (founder-like scenarios).
+- Task: complete one launch run and start one setup action path.
+- Capture automatically from `runs` telemetry + operator notes.
 
 ### Metrics captured per user
 1. `TLR` from `runs.created_at` and `runs.completed_at`
@@ -321,9 +382,9 @@ This converts the current benchmark assumptions into judge-verifiable outcomes.
 To improve Ecosystem Thinking score from aspirational to demonstrated, ship at least one minimal ecosystem interface in the demo window:
 
 ### In-scope ecosystem deliverable
-- **`POST /api/runs/export`** (minimal implementation)
-  - Input: `{ runId }`
-  - Output: JSON bundle containing `presentation`, `agent_outputs`, `final_output`
+- **`GET /api/runs/export`** (minimal implementation)
+  - Query: `limit`, optional `format=json|csv`
+  - Output: JSON bundle or CSV export containing run and presentation payloads
 
 ### Why this matters
 - Demonstrates interoperability now (not later roadmap).

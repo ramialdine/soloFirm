@@ -19,6 +19,33 @@
 6. Results are persisted.
 7. Optional automation session is started through `POST /api/automation/sessions`.
 
+## 2.1 Sequence diagram (runtime)
+
+```text
+Founder UI
+  -> POST /api/qa
+  <- questions | ready
+  -> POST /api/orchestrate (SSE)
+    -> planner
+    -> [research, legal, finance]
+    -> brand
+    -> social
+    -> critic
+    -> synthesis (plan + roadmap + presentation)
+    -> persist runs row
+  <- SSE: run_started ... run_complete
+  -> POST /api/finalize (user edits)
+  -> POST /api/automation/sessions (optional)
+    -> sidecar /sessions
+    <- sessionId + status stream
+```
+
+Failure propagation:
+
+- Agent timeout/error emits `agent_error` and can still produce `partial` run.
+- Sidecar failure surfaces through `/api/automation/health` and session status events.
+- Persistence failures are handled best-effort and do not block stream completion.
+
 ## 3) Agent phase graph
 
 ```text
@@ -60,6 +87,17 @@ SSE payload shape is defined by `SSEEvent` in [types/agents.ts](../types/agents.
 
 Schema source: [supabase-schema.sql](../supabase-schema.sql)
 
+Core `runs` columns used by runtime:
+
+- `id` (uuid, pk)
+- `domain` (business idea)
+- `task` (plan summary)
+- `status` (`pending` | `running` | `complete` | `partial` | `error`)
+- `agent_outputs` (jsonb)
+- `final_output` (text)
+- `presentation` (jsonb)
+- `created_at`, `completed_at` (timestamps)
+
 ## 6) Reliability controls
 
 - Timeout boundaries in orchestration
@@ -78,3 +116,11 @@ Schema source: [supabase-schema.sql](../supabase-schema.sql)
 2. Isolated automation workers by provider/platform.
 3. Provider abstraction for AI model routing.
 4. Explicit tenant boundary and per-run auth scopes.
+
+## 9) Scalability tiers (today / 100 users / 10,000 users)
+
+| Tier | Orchestration runtime | Streaming | Persistence | Automation |
+|---|---|---|---|---|
+| Today (hackathon) | Single Next.js runtime with in-process orchestration | Direct SSE from API route | Supabase shared tables | Single sidecar process |
+| ~100 active users | Queue-backed orchestration workers | SSE backed by run-state checkpoints | Indexed run queries + export batching | Sidecar process pool |
+| ~10,000 active users | Distributed worker fleet + job scheduler | Event bus + resumable stream gateway | Partitioned storage + retention policies | Provider-specific automation workers |

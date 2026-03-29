@@ -78,3 +78,30 @@ lsof -tiTCP -sTCP:LISTEN | xargs kill -15
 - [ ] No broken image UI
 - [ ] Automation health endpoint returns OK
 - [ ] README and docs are current
+
+## 7) T-4h scope freeze rule
+
+If behind schedule at T-4h, cut work in this order:
+
+1. Visual polish and non-critical UI refinements.
+2. Optional ecosystem enhancements beyond `GET /api/runs/:id` and `GET /api/runs/export`.
+3. Nice-to-have automation extensions (keep at least one proven action path).
+
+Do **not** cut:
+
+- End-to-end run stability
+- Plan/roadmap generation quality
+- Evidence artifact collection
+- Demo script rehearsal
+
+## 8) Internal benchmark protocol (same-day)
+
+Run 3 internal sessions and record in [docs/benchmark-results-template.md](benchmark-results-template.md):
+
+1. Start timestamp
+2. Completion timestamp
+3. Generated roadmap step count
+4. Whether automation session started
+5. Notes on failures/recovery
+
+Use these runs as feasibility/impact proof for judging.

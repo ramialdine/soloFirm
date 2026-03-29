@@ -52,10 +52,10 @@ export default function AgentCard({ agentId, status, content, expanded, onToggle
         onClick={onToggle}
         className="w-full text-left p-4 hover:opacity-80 transition-opacity"
       >
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-start gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
             <span className={`mt-1 inline-block h-2.5 w-2.5 shrink-0 rounded-full ${style.dot}`} />
-            <div className="flex items-start gap-2">
+            <div className="flex min-w-0 items-start gap-2">
               {AGENT_PHOTOS[agentId] && (
                 <img
                   src={AGENT_PHOTOS[agentId]}
@@ -63,13 +63,13 @@ export default function AgentCard({ agentId, status, content, expanded, onToggle
                   className="h-10 w-10 rounded-lg object-cover shrink-0"
                 />
               )}
-              <div>
-                <p className="text-sm font-semibold text-zinc-900">{meta.label}</p>
-                <p className="mt-0.5 text-xs text-zinc-500">{meta.deliverable}</p>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-zinc-900">{meta.label}</p>
+                <p className="mt-0.5 truncate text-xs text-zinc-500">{meta.deliverable}</p>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="ml-2 flex shrink-0 items-center gap-2">
             <span className={`text-xs font-medium ${style.text}`}>{style.label}</span>
             {content && (
               <span className="text-zinc-300 text-xs">{expanded ? "\u25B2" : "\u25BC"}</span>

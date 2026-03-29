@@ -36,6 +36,7 @@ Optional but recommended for automation features:
 
 - `AUTOMATION_SERVER_URL`
 - `AUTOMATION_SECRET`
+- `RUNS_API_KEY` (optional bearer auth for `/api/runs/*` endpoints)
 - Google OAuth credentials (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_SECRET`)
 
 ### 3) Run modes
@@ -92,6 +93,8 @@ Primary app routes:
 - `POST /api/finalize`
 - `POST /api/parse-documents`
 - `POST /api/waitlist`
+- `GET /api/runs/:id`
+- `GET /api/runs/export` (`?format=json|csv&limit=50`)
 - `GET /api/automation/health`
 - `POST /api/automation/sessions`
 - `POST /api/accounts/google-business`

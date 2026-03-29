@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
             emit
           );
 
-          // Persist to Supabase (best-effort)
+          // Persist to Supabase (best-effort) BEFORE telling the client we're done
           try {
             const sb = getServiceSupabase();
             await sb.from("runs").upsert({
@@ -74,6 +74,8 @@ export async function POST(req: NextRequest) {
             // best-effort
           }
 
+          // Emit run_complete AFTER save so the client navigates to a page that exists
+          emit({ type: "run_complete", run, timestamp: new Date().toISOString() });
           controller.close();
         } catch (err: unknown) {
           emit({

@@ -23,6 +23,7 @@ Use this file as the final judge-facing validation list.
 - [ ] TLR computed for each run
 - [ ] Step specificity rate computed
 - [ ] QA specificity sample documented
+- [ ] [Benchmark results sheet](benchmark-results.md) is populated (no `pending` values)
 
 ## D) Reliability proof
 
