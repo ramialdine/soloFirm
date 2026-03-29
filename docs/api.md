@@ -5,6 +5,8 @@
 - JSON unless noted otherwise.
 - Validation failures return `400`.
 - Server/proxy failures return `5xx`.
+- Auth failures return `401` for protected read/export endpoints.
+- Local fallback behavior is enabled for run read/export and finalize persistence paths.
 
 ## Authentication
 
@@ -39,6 +41,12 @@ Response:
 - Round 2 follow-up: `{ ready: false, questions: [...] }`
 - Finalize: `{ plan: string }`
 
+Status codes:
+
+- `200` success
+- `400` invalid intake payload
+- `500` route-level failure (with safe fallback question payload where possible)
+
 Implementation: [app/api/qa/route.ts](../app/api/qa/route.ts)
 
 ### POST /api/orchestrate
@@ -55,6 +63,11 @@ Response:
 
 - `text/event-stream` with typed `SSEEvent` entries.
 
+Status codes:
+
+- `200` stream established
+- `400` invalid request body or missing `businessIdea`
+
 Implementation: [app/api/orchestrate/route.ts](../app/api/orchestrate/route.ts)
 
 ### POST /api/finalize
@@ -69,6 +82,15 @@ Request body:
 Response:
 
 - `{ ok: true }`
+
+Status codes:
+
+- `200` success
+- `400` missing `runId` or `presentation`
+
+Reliability note:
+
+- If Supabase update fails, route attempts local fallback persistence (`data/runs-local.json`).
 
 Implementation: [app/api/finalize/route.ts](../app/api/finalize/route.ts)
 
@@ -86,6 +108,12 @@ Response:
 
 - `{ text: string }`
 
+Status codes:
+
+- `200` success
+- `400` unsupported/missing file input
+- `500` parser failure
+
 Implementation: [app/api/parse-documents/route.ts](../app/api/parse-documents/route.ts)
 
 ### POST /api/waitlist
@@ -99,6 +127,12 @@ Request body:
 Response:
 
 - `{ ok: true }`
+
+Status codes:
+
+- `200` success
+- `400` invalid email payload
+- `409` duplicate email (when constrained by unique index)
 
 Implementation: [app/api/waitlist/route.ts](../app/api/waitlist/route.ts)
 
@@ -117,6 +151,14 @@ Response:
 Notes:
 
 - If Supabase is unavailable, endpoint falls back to local run storage (`data/runs-local.json`).
+
+Status codes:
+
+- `200` success
+- `400` missing run id
+- `401` invalid/missing bearer token when `RUNS_API_KEY` is configured
+- `404` run not found in both Supabase and local fallback
+- `500` unexpected server error with no fallback hit
 
 Implementation: [app/api/runs/[id]/route.ts](../app/api/runs/[id]/route.ts)
 
@@ -138,6 +180,12 @@ Notes:
 
 - If Supabase export fails, endpoint falls back to local run storage export.
 
+Status codes:
+
+- `200` success (`json` response or `text/csv` download)
+- `401` invalid/missing bearer token when `RUNS_API_KEY` is configured
+- `500` unexpected export error (rare; fallback path should still return `200` in most cases)
+
 Implementation: [app/api/runs/export/route.ts](../app/api/runs/export/route.ts)
 
 ### GET /api/webhooks/run-complete
@@ -147,6 +195,10 @@ Purpose: Publish the `run_complete` webhook contract for external integrators.
 Response:
 
 - JSON schema for event payload and signing headers.
+
+Status codes:
+
+- `200` success
 
 Implementation: [app/api/webhooks/run-complete/route.ts](../app/api/webhooks/run-complete/route.ts)
 
@@ -183,6 +235,13 @@ Payload:
 
 Delivery implementation: [lib/webhooks.ts](../lib/webhooks.ts)
 
+Signature verification reference (receiver side):
+
+1. Read raw request body as bytes/string.
+2. Compute `HMAC_SHA256(body, WEBHOOK_SIGNING_SECRET)`.
+3. Compare hex digest with `x-solofirm-signature`.
+4. Verify `x-solofirm-event === run_complete`.
+
 ### GET /api/automation/health
 
 Purpose: Verify automation sidecar availability.
@@ -191,6 +250,11 @@ Response:
 
 - Healthy: `{ ok: true }`
 - Unhealthy: `{ ok: false, reason }`
+
+Status codes:
+
+- `200` sidecar reachable
+- `502` sidecar unavailable/unhealthy
 
 Implementation: [app/api/automation/health/route.ts](../app/api/automation/health/route.ts)
 
@@ -202,11 +266,23 @@ Response:
 
 - Mirrors sidecar response/status.
 
+Status codes:
+
+- `2xx` session accepted by sidecar
+- `4xx/5xx` bubbled from sidecar proxy path
+
 Implementation: [app/api/automation/sessions/route.ts](../app/api/automation/sessions/route.ts)
 
 ### POST /api/accounts/google-business
 
 Purpose: Create or update Google Business profile with OAuth session context.
+
+Status codes:
+
+- `200` success
+- `400` invalid payload
+- `401` no valid auth session
+- `5xx` provider or proxy failure
 
 Implementation: [app/api/accounts/google-business/route.ts](../app/api/accounts/google-business/route.ts)
 
@@ -214,11 +290,74 @@ Implementation: [app/api/accounts/google-business/route.ts](../app/api/accounts/
 
 Purpose: Configure YouTube channel details with OAuth session context.
 
+Status codes:
+
+- `200` success
+- `400` invalid payload
+- `401` no valid auth session
+- `5xx` provider or proxy failure
+
 Implementation: [app/api/accounts/youtube/route.ts](../app/api/accounts/youtube/route.ts)
 
 ### POST /api/brand/logo
 
 Purpose: Generate and return logo SVG using AI + sanitization.
+
+Status codes:
+
+- `200` success
+- `400` invalid prompt/context input
+- `5xx` provider or sanitization failure
+
+Implementation: [app/api/brand/logo/route.ts](../app/api/brand/logo/route.ts)
+
+### POST /api/naming
+
+Purpose: Generate business name, suggestions, and optional tagline from intake context.
+
+Request body:
+
+- `businessIdea` (required)
+- `location`, `budgetRange` (optional)
+
+Response:
+
+- `{ businessName, nameSuggestions[], tagline }`
+
+Status codes:
+
+- `200` success
+- `400` missing `businessIdea` or invalid JSON
+
+Implementation: [app/api/naming/route.ts](../app/api/naming/route.ts)
+
+### POST /api/docs/fill-pdf
+
+Purpose: Fill supported LLC formation PDF forms and return generated PDF bytes.
+
+Request body:
+
+- `businessName` (required)
+- `state` (required, must be supported)
+- `teamSize` (optional)
+
+Response:
+
+- `application/pdf` binary body with download filename.
+
+Status codes:
+
+- `200` success
+- `400` missing fields or unsupported state
+- `500` PDF generation failure
+
+Implementation: [app/api/docs/fill-pdf/route.ts](../app/api/docs/fill-pdf/route.ts)
+
+### /api/auth/* (NextAuth)
+
+Purpose: Authentication/session lifecycle endpoints managed by NextAuth handlers.
+
+Implementation: [app/api/auth/[...nextauth]/route.ts](../app/api/auth/[...nextauth]/route.ts)
 
 Implementation: [app/api/brand/logo/route.ts](../app/api/brand/logo/route.ts)
 

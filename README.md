@@ -103,8 +103,14 @@ Primary app routes:
 - `POST /api/accounts/google-business`
 - `POST /api/accounts/youtube`
 - `POST /api/brand/logo`
+- `POST /api/naming`
+- `POST /api/docs/fill-pdf`
 
 Full endpoint contracts: [docs/api.md](docs/api.md)
+
+Auth route (framework-managed):
+
+- `/api/auth/*` (NextAuth handlers)
 
 ## Data model
 
@@ -154,6 +160,13 @@ See image handling and fallbacks in [docs/operations.md](docs/operations.md).
 - API contracts: [docs/api.md](docs/api.md)
 - Operations runbook: [docs/operations.md](docs/operations.md)
 - Evidence checklist: [docs/evidence-pack.md](docs/evidence-pack.md)
+- Judge submission map: [docs/submission-pack.md](docs/submission-pack.md)
+
+## Submission-readiness quick checks
+
+- Documentation-to-code parity checklist: [docs/submission-pack.md](docs/submission-pack.md)
+- Evidence artifact checklist: [docs/evidence-pack.md](docs/evidence-pack.md)
+- Benchmark source of record: [docs/benchmark-results.md](docs/benchmark-results.md)
 
 ## Judging/demo focus
 
