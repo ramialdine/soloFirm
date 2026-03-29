@@ -17,6 +17,9 @@ export async function POST(req: NextRequest) {
       documents,
       clarifyingAnswers,
       planSummary,
+      selectedBusinessName,
+      selectedAccentColor,
+      selectedFontFamily,
     } = body;
 
     if (!businessIdea) {
@@ -46,6 +49,9 @@ export async function POST(req: NextRequest) {
               documents,
               clarifyingAnswers,
               planSummary,
+              selectedBusinessName: selectedBusinessName || undefined,
+              selectedAccentColor: selectedAccentColor || undefined,
+              selectedFontFamily: selectedFontFamily || undefined,
             },
             emit
           );

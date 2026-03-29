@@ -14,15 +14,20 @@ export default async function PlanPage({
     notFound();
   }
 
-  const plannerContent = run.agent_outputs?.planner?.content;
   const presentation = run.presentation;
 
-  if (!plannerContent) {
+  // Prefer the composed planDocument (all 7 agents); fall back to planner-only then final_output
+  const planDocument =
+    presentation?.planDocument ??
+    run.final_output ??
+    run.agent_outputs?.planner?.content;
+
+  if (!planDocument) {
     return (
       <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
         <p className="text-sm text-zinc-400">
           No plan available yet. Complete the agent pipeline to generate your
-          full 90-day plan.
+          full launch plan.
         </p>
       </div>
     );
@@ -30,8 +35,10 @@ export default async function PlanPage({
 
   return (
     <PlanPageClient
-      plannerContent={plannerContent}
-      businessName={presentation?.businessName ?? run.domain ?? "Your Business"}
+      planDocument={planDocument}
+      businessName={
+        presentation?.businessName ?? run.domain ?? "Your Business"
+      }
       brandTheme={presentation?.brandTheme}
       roadmapSteps={presentation?.roadmap ?? []}
     />

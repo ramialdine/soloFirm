@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "", label: "Agent Outputs", icon: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" },
-  { href: "/roadmap", label: "Roadmap", icon: "M12 20V10M18 20V4M6 20v-4" },
   { href: "/plan", label: "Full Plan", icon: "M4 6h16M4 12h16M4 18h10" },
+  { href: "/roadmap", label: "Roadmap", icon: "M12 20V10M18 20V4M6 20v-4" },
+  { href: "", label: "Agent Outputs", icon: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" },
 ];
 
 export default function ResultsNav({ id }: { id: string }) {

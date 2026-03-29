@@ -20,7 +20,7 @@ import { AGENT_META } from "@/types/agents";
 
 const AGENT_IDS: AgentId[] = ["planner", "research", "legal", "finance", "brand", "social", "critic"];
 
-type Step = "intake" | "qa" | "running" | "packaging" | "complete";
+type Step = "intake" | "qa" | "brand-selection" | "running" | "packaging" | "complete";
 type QaSource = "ai" | "fallback" | "test" | "unknown";
 
 interface QaMetaPayload {
@@ -199,6 +199,14 @@ export default function AgentOrchestrator() {
   const [packagingReady, setPackagingReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [synthesizing, setSynthesizing] = useState(false);
+
+  // Brand selection state (pre-run)
+  const [brandName, setBrandName] = useState("");
+  const [brandSuggestions, setBrandSuggestions] = useState<string[]>([]);
+  const [brandTagline, setBrandTagline] = useState("");
+  const [brandAccentColor, setBrandAccentColor] = useState("#10b981");
+  const [brandFontFamily, setBrandFontFamily] = useState("Inter");
+  const [loadingBrand, setLoadingBrand] = useState(false);
 
   // ── Persist state across OAuth redirects ──
   const STORAGE_KEY = "solofirm_run_state";
@@ -443,7 +451,51 @@ export default function AgentOrchestrator() {
     }
   };
 
-  // ── Step 3: Launch agents ───────────────────────────────────────────────
+  // ── Step 3a: Transition to brand selection ───────────────────────────────
+  const handleGoToBrandSelection = async () => {
+    setStep("brand-selection");
+    setLoadingBrand(true);
+    try {
+      const res = await fetch("/api/naming", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessIdea: intake.businessIdea,
+          location: intake.location,
+          budgetRange: intake.budgetRange,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const suggestions: string[] = data.nameSuggestions ?? [];
+        setBrandSuggestions(suggestions);
+        const firstName = suggestions[0] ?? data.businessName ?? "";
+        setBrandName(firstName);
+        setBrandTagline(data.tagline ?? "");
+      }
+    } catch { /* use empty state */ }
+    finally { setLoadingBrand(false); }
+  };
+
+  // ── Step 3b: Launch agents from brand selection ───────────────────────────
+  const handleLaunchFromBrandSelection = () => {
+    const clarifyingAnswers = qaHistory
+      .map((h) => `Q: ${h.question}\nA: ${h.answer}`)
+      .join("\n\n");
+    setStep("running");
+    startOrchestration(
+      {
+        ...intake,
+        selectedBusinessName: brandName.trim() || undefined,
+        selectedAccentColor: brandAccentColor !== "#10b981" ? brandAccentColor : undefined,
+        selectedFontFamily: brandFontFamily !== "Inter" ? brandFontFamily : undefined,
+      },
+      clarifyingAnswers,
+      planSummary
+    );
+  };
+
+  // ── Step 3: Launch agents (legacy — called when skipping brand selection) ──
   const handleLaunchAgents = () => {
     const clarifyingAnswers = qaHistory
       .map((h) => `Q: ${h.question}\nA: ${h.answer}`)
@@ -541,15 +593,22 @@ export default function AgentOrchestrator() {
                   setPresentation(event.presentation);
                 }
                 break;
-              case "run_complete":
+              case "run_complete": {
+                const completedRunId = event.run?.id ?? null;
                 setFinalOutput(event.run?.final_output ?? null);
-                setRunId(event.run?.id ?? null);
+                setRunId(completedRunId);
                 if (event.run?.presentation) {
                   setPresentation(event.run.presentation);
                 }
                 setPackagingReady(true);
-                setStep("packaging");
+                // Orchestrate route already saved to Supabase — go directly to plan page
+                if (completedRunId) {
+                  router.push(`/results/${completedRunId}/plan`);
+                } else {
+                  setStep("packaging"); // fallback if no runId
+                }
                 break;
+              }
             }
           } catch { /* skip malformed */ }
         }
@@ -626,11 +685,11 @@ export default function AgentOrchestrator() {
         {[
           { key: "intake", label: "Your Business" },
           { key: "qa", label: "Quick Questions" },
+          { key: "brand-selection", label: "Your Brand" },
           { key: "running", label: "Agents Working" },
-          { key: "packaging", label: "Your Roadmap" },
           { key: "complete", label: "Launch Ready" },
         ].map((s, i, arr) => {
-          const stepOrder = ["intake", "qa", "running", "packaging", "complete"];
+          const stepOrder = ["intake", "qa", "brand-selection", "running", "packaging", "complete"];
           const currentIdx = stepOrder.indexOf(step);
           const thisIdx = stepOrder.indexOf(s.key);
           const isDone = currentIdx > thisIdx;
@@ -949,15 +1008,153 @@ export default function AgentOrchestrator() {
                     Your AI team is ready to build the full package — legal docs, financials, brand identity, social media kit, and your 90-day roadmap.
                   </p>
                   <button
-                    onClick={handleLaunchAgents}
+                    onClick={handleGoToBrandSelection}
                     className="mt-4 flex items-center gap-2 rounded-xl bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-700"
                   >
-                    Launch 7 Agents →
+                    Pick your brand →
                   </button>
                 </div>
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════ */}
+      {/* STEP 2b: BRAND SELECTION                             */}
+      {/* ══════════════════════════════════════════════════════ */}
+      {step === "brand-selection" && (
+        <div className="space-y-5">
+          {/* Header */}
+          <div className="rounded-2xl border border-zinc-200 bg-white px-6 py-6 shadow-sm">
+            <h2 className="text-xl font-semibold text-zinc-900">Name your business</h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              Pick a name, accent color, and font before your agents get to work.
+            </p>
+          </div>
+
+          {/* Name suggestions */}
+          {loadingBrand ? (
+            <div className="flex items-center justify-center gap-3 rounded-2xl border border-zinc-200 bg-white py-12 shadow-sm">
+              <svg className="h-5 w-5 animate-spin text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round"/>
+              </svg>
+              <span className="text-sm text-zinc-500">Generating name ideas for your business…</span>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-800 mb-3">Pick a business name</h3>
+                {brandSuggestions.length > 0 && (
+                  <div className="grid gap-2 sm:grid-cols-2 mb-3">
+                    {brandSuggestions.map((name) => {
+                      const selected = brandName === name;
+                      return (
+                        <button
+                          key={name}
+                          type="button"
+                          onClick={() => setBrandName(name)}
+                          className={`rounded-xl border px-4 py-2.5 text-left text-sm font-medium transition-colors ${
+                            selected
+                              ? "border-zinc-900 bg-zinc-900 text-white"
+                              : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-400"
+                          }`}
+                        >
+                          {name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <input
+                  type="text"
+                  value={brandName}
+                  onChange={(e) => setBrandName(e.target.value)}
+                  placeholder="Or type a custom name…"
+                  className="w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none"
+                />
+              </div>
+              {brandTagline && (
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-800 mb-1.5">Tagline</h3>
+                  <input
+                    type="text"
+                    value={brandTagline}
+                    onChange={(e) => setBrandTagline(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm text-zinc-600 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Accent color */}
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <h3 className="text-sm font-semibold text-zinc-800 mb-3">Brand accent color</h3>
+            <div className="flex flex-wrap items-center gap-3">
+              {["#10b981","#3b82f6","#8b5cf6","#f43f5e","#f59e0b","#06b6d4","#ec4899"].map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setBrandAccentColor(color)}
+                  className={`h-8 w-8 rounded-full ring-2 ring-offset-2 transition-transform hover:scale-110 ${
+                    brandAccentColor === color ? "ring-zinc-900 scale-110" : "ring-transparent"
+                  }`}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+              <label className="relative cursor-pointer">
+                <div
+                  className="h-8 w-8 rounded-full ring-2 ring-offset-2 ring-zinc-300 flex items-center justify-center text-xs text-zinc-500 overflow-hidden"
+                  style={{ backgroundColor: /^#[0-9a-f]{6}$/i.test(brandAccentColor) ? brandAccentColor : undefined }}
+                >
+                  <span className="text-white text-[10px] font-bold select-none">+</span>
+                </div>
+                <input
+                  type="color"
+                  value={brandAccentColor}
+                  onChange={(e) => setBrandAccentColor(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer h-full w-full"
+                />
+              </label>
+              <span className="text-xs text-zinc-400 font-mono">{brandAccentColor}</span>
+            </div>
+          </div>
+
+          {/* Font family */}
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <h3 className="text-sm font-semibold text-zinc-800 mb-3">Font family</h3>
+            <select
+              value={brandFontFamily}
+              onChange={(e) => setBrandFontFamily(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 focus:border-zinc-400 focus:outline-none sm:w-64"
+            >
+              {["Inter","Poppins","Montserrat","Roboto","Open Sans","Lato","Raleway","Nunito",
+                "Playfair Display","Merriweather","Work Sans","DM Sans","Outfit","Space Grotesk",
+                "IBM Plex Sans","Manrope","Sora"].map((font) => (
+                <option key={font} value={font}>{font}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Launch button */}
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setStep("qa")}
+              className="text-sm text-zinc-400 hover:text-zinc-700 transition-colors"
+            >
+              ← Back
+            </button>
+            <button
+              type="button"
+              onClick={handleLaunchFromBrandSelection}
+              disabled={!brandName.trim() || loadingBrand}
+              className="flex items-center gap-2 rounded-xl bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 disabled:opacity-40"
+            >
+              Launch {brandName.trim() ? `"${brandName}" ` : ""}agents →
+            </button>
+          </div>
         </div>
       )}
 

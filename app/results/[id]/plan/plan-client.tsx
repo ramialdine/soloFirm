@@ -5,7 +5,7 @@ import { MarkdownBody } from "@/components/OutputPanel";
 import type { RoadmapStep } from "@/types/agents";
 
 interface PlanPageClientProps {
-  plannerContent: string;
+  planDocument: string;
   businessName: string;
   brandTheme?: {
     primaryColor: string;
@@ -51,7 +51,7 @@ function addAnchorsToMarkdown(markdown: string): string {
 }
 
 export default function PlanPageClient({
-  plannerContent,
+  planDocument,
   businessName,
   brandTheme,
   roadmapSteps,
@@ -62,16 +62,16 @@ export default function PlanPageClient({
   const fontFamily = brandTheme?.fontFamily ?? "Inter";
   const fontUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontFamily)}:wght@400;600;700;800&display=swap`;
 
-  const toc = useMemo(() => buildToc(plannerContent), [plannerContent]);
+  const toc = useMemo(() => buildToc(planDocument), [planDocument]);
   const anchored = useMemo(
-    () => addAnchorsToMarkdown(plannerContent),
-    [plannerContent]
+    () => addAnchorsToMarkdown(planDocument),
+    [planDocument]
   );
 
   const handlePrint = () => {
     const w = window.open("", "_blank");
     if (!w) return;
-    w.document.write(`<!DOCTYPE html><html><head><title>${businessName} — 90-Day Launch Plan</title>
+    w.document.write(`<!DOCTYPE html><html><head><title>${businessName} — Launch Plan</title>
 <style>
 body{font-family:${fontFamily},-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:820px;margin:40px auto;padding:0 24px;line-height:1.7;color:#111}
 h1{border-bottom:2px solid ${accentColor};padding-bottom:.3em;margin-bottom:.5em}
@@ -84,9 +84,9 @@ ul,ol{margin:.5em 0 .5em 1.5em}
 li{margin:.3em 0}
 @media print{body{margin:20px}h2{break-after:avoid}table{break-inside:avoid}}
 </style></head><body>`);
-    w.document.write(`<h1>${businessName} — Full 90-Day Launch Plan</h1>`);
+    w.document.write(`<h1>${businessName} — Full Launch Plan</h1>`);
     w.document.write(
-      `<div style="white-space:pre-wrap;font-size:.95em">${plannerContent
+      `<div style="white-space:pre-wrap;font-size:.95em">${planDocument
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")}</div>`
     );
@@ -98,7 +98,7 @@ li{margin:.3em 0}
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(plannerContent);
+      await navigator.clipboard.writeText(planDocument);
     } catch {
       /* fallback: no-op */
     }
@@ -119,9 +119,9 @@ li{margin:.3em 0}
             {businessName} — Full 90-Day Plan
           </h2>
           <p className="text-sm text-zinc-500 mt-1">
-            Complete analysis from the Planner Agent
+            Full launch package — all 7 agent outputs in one document
             {roadmapSteps.length > 0 &&
-              ` — ${roadmapSteps.length} actionable steps extracted`}
+              ` · ${roadmapSteps.length} roadmap steps`}
           </p>
         </div>
         <div className="flex gap-2">

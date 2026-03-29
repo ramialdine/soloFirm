@@ -314,12 +314,6 @@ export function PackagingPanel({
   businessLocation,
 }: PackagingPanelProps) {
   const { brandTheme } = presentation;
-  const nameSuggestions = deriveNameSuggestions(presentation, outputs.brand?.content ?? "");
-
-  // Ensure AI-suggested font is in the dropdown
-  const fontOptions = FONT_OPTIONS.includes(brandTheme.fontFamily)
-    ? FONT_OPTIONS
-    : [brandTheme.fontFamily, ...FONT_OPTIONS];
 
   // Google Fonts URL for live preview
   const fontUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(brandTheme.fontFamily)}:wght@400;600;700;800&display=swap`;
@@ -366,130 +360,32 @@ export function PackagingPanel({
         </div>
       )}
 
-      {/* ── Business identity — name, tagline, theme ── */}
+      {/* Brand identity summary (read-only — set before run) */}
       <div
-        className="relative overflow-hidden rounded-2xl border border-zinc-200 shadow-sm"
+        className="relative overflow-hidden rounded-2xl border border-zinc-200 shadow-sm px-6 py-5 sm:px-8"
         style={{
           background: `linear-gradient(135deg, ${brandTheme.primaryColor}08 0%, ${brandTheme.accentColor}12 100%)`,
           fontFamily: `'${brandTheme.fontFamily}', sans-serif`,
         }}
       >
-        <div className="px-6 py-8 sm:px-8">
-          <p className="text-xs font-medium uppercase tracking-widest text-zinc-400 mb-3">Your Business</p>
-
-          <input
-            type="text"
-            value={presentation.businessName}
-            onChange={(e) =>
-              onPresentationChange({ ...presentation, businessName: e.target.value })
-            }
-            className="block w-full bg-transparent text-3xl sm:text-4xl font-bold text-zinc-900 border-none outline-none placeholder:text-zinc-300 focus:ring-0 p-0"
-            style={{ fontFamily: `'${brandTheme.fontFamily}', sans-serif` }}
-            placeholder="Business Name"
-          />
-
-          <input
-            type="text"
-            value={presentation.tagline}
-            onChange={(e) =>
-              onPresentationChange({ ...presentation, tagline: e.target.value })
-            }
-            className="mt-2 block w-full bg-transparent text-lg text-zinc-500 border-none outline-none placeholder:text-zinc-300 focus:ring-0 p-0"
-            placeholder="Your tagline"
-          />
-
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <span className="text-xs text-zinc-400 mr-1">Theme:</span>
-            {(["primaryColor", "secondaryColor", "accentColor"] as const).map((key) => (
-              <label key={key} className="group relative cursor-pointer">
-                <div
-                  className="h-7 w-7 rounded-full ring-2 ring-white shadow-sm transition-transform group-hover:scale-110"
-                  style={{ backgroundColor: brandTheme[key] }}
-                />
-                <input
-                  type="color"
-                  value={brandTheme[key]}
-                  onChange={(e) =>
-                    onPresentationChange({
-                      ...presentation,
-                      brandTheme: { ...brandTheme, [key]: e.target.value },
-                    })
-                  }
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                />
-              </label>
-            ))}
-            <select
-              value={brandTheme.fontFamily}
-              onChange={(e) =>
-                onPresentationChange({
-                  ...presentation,
-                  brandTheme: { ...brandTheme, fontFamily: e.target.value },
-                })
-              }
-              className="ml-2 rounded-lg border border-zinc-200 bg-white/80 px-3 py-1.5 text-xs text-zinc-600 w-36 focus:border-zinc-400 focus:outline-none"
-            >
-              {fontOptions.map((font) => (
-                <option key={font} value={font} style={{ fontFamily: font }}>
-                  {font}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Name suggestions ── */}
-      {nameSuggestions.length > 0 && (
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h3 className="text-sm font-semibold text-zinc-800">Pick your business name</h3>
-          <p className="mt-1 text-xs text-zinc-500">
-            Choose one option below, or keep editing the custom name above.
-          </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {nameSuggestions.map((name) => {
-              const selected = presentation.businessName === name;
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => onPresentationChange({ ...presentation, businessName: name })}
-                  className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
-                    selected
-                      ? "border-zinc-900 bg-zinc-900 text-white"
-                      : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
-                  }`}
-                  style={{ fontFamily: `'${brandTheme.fontFamily}', sans-serif` }}
-                >
-                  {name}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Logo ── */}
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-800">Logo</h3>
-            <p className="text-xs text-zinc-500 mt-1">
-              Use Canva&apos;s free logo generator — plug in your brand colors and name from the Brand Package above.
-            </p>
-          </div>
-          <a
-            href="https://www.canva.com/create/logos/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-700 transition-colors"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-              <path d="M15 3h6v6M10 14L21 3" />
-            </svg>
-            Create on Canva →
-          </a>
+        <h1
+          className="text-2xl sm:text-3xl font-bold text-zinc-900"
+          style={{ fontFamily: `'${brandTheme.fontFamily}', sans-serif` }}
+        >
+          {presentation.businessName}
+        </h1>
+        {presentation.tagline && (
+          <p className="mt-1 text-base text-zinc-500">{presentation.tagline}</p>
+        )}
+        <div className="mt-4 flex items-center gap-2">
+          {(["primaryColor", "secondaryColor", "accentColor"] as const).map((key) => (
+            <div
+              key={key}
+              className="h-5 w-5 rounded-full ring-2 ring-white shadow-sm"
+              style={{ backgroundColor: brandTheme[key] }}
+            />
+          ))}
+          <span className="ml-2 text-xs text-zinc-400">{brandTheme.fontFamily}</span>
         </div>
       </div>
 

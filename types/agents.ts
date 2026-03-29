@@ -66,6 +66,10 @@ export interface IntakeData {
   // Populated after Q&A phase
   clarifyingAnswers?: string;
   planSummary?: string;
+  // Pre-run brand selection (chosen before agents run)
+  selectedBusinessName?: string;
+  selectedAccentColor?: string;
+  selectedFontFamily?: string;
 }
 
 export interface QAMessage {
@@ -119,6 +123,7 @@ export interface Presentation {
   tagline: string;
   selectedBusinessStructure?: string;
   derivedFromPlanner?: boolean; // true when roadmap was extracted from planner output
+  planDocument?: string; // composed full document from all 7 agents
   brandTheme: {
     primaryColor: string;   // hex
     secondaryColor: string; // hex

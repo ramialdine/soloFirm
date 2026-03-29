@@ -267,6 +267,52 @@ function isError(content: string) {
   return content.startsWith("[") && content.includes("error");
 }
 
+// ── Multi-agent task extraction ───────────────────────────────────────────────
+
+interface AgentTask {
+  sourceAgent: AgentId;
+  title: string;
+  week: string;
+  phase: string;
+}
+
+/** Extract up to `limit` actionable bullet-point tasks from any agent's output */
+function extractAgentTasks(
+  agentId: AgentId,
+  content: string,
+  defaultPhase: string,
+  limit = 7
+): AgentTask[] {
+  const tasks: AgentTask[] = [];
+  let currentPhase = defaultPhase;
+
+  for (const line of content.split("\n")) {
+    // Phase transitions from section headers
+    if (/^#{1,4}.*(?:week\s*[1-2]|foundation|admin|legal|financial|setup|entity)/i.test(line))
+      currentPhase = "Foundation";
+    else if (/^#{1,4}.*(?:week\s*[3-5]|brand|build|product|develop|design|identity)/i.test(line))
+      currentPhase = "Build";
+    else if (/^#{1,4}.*(?:week\s*[6-8]|launch|market|content|outreach|social)/i.test(line))
+      currentPhase = "Launch";
+    else if (/^#{1,4}.*(?:week\s*[9-9]|week\s*1[0-9]|grow|scale|optim|revenue)/i.test(line))
+      currentPhase = "Grow";
+
+    const taskMatch = line.match(/^[-*]\s*(?:\[[ x]\]\s*)?(.{10,})/);
+    if (taskMatch) {
+      const text = taskMatch[1].trim();
+      if (text.length < 15 || /^https?:\/\//.test(text)) continue;
+      tasks.push({
+        sourceAgent: agentId,
+        title: text.replace(/\*\*/g, "").slice(0, 120),
+        week: "Week 1",
+        phase: currentPhase,
+      });
+    }
+    if (tasks.length >= limit) break;
+  }
+  return tasks;
+}
+
 // ── Planner task extraction ──────────────────────────────────────────────────
 
 interface PlannerTask {
@@ -390,15 +436,16 @@ CRITICAL: Return ONLY a valid JSON object — no markdown, no explanation, no pr
   ]
 }
 
-ROADMAP RULES (CRITICAL — roadmap must come from the planner tasks provided):
-- A pre-extracted list of planner tasks is provided in the input under "--- Planner-Derived Task Candidates ---".
-- You MUST use these tasks as your primary source. Convert each viable task into a roadmap step.
-- Keep every task that is actionable and specific. Drop only true duplicates or vague sub-details.
-- For each task, enrich it with: why (specific to this business), prepared (what's in the launch package), action (exact next step), estimated time, cost.
-- Map tasks to exactly 4 phases: Foundation (admin/legal), Build (brand/product/website), Launch (content/outreach/soft launch), Grow (customers/revenue/scale).
-- Output 12-20 roadmap steps total, in chronological order.
-- "sourceAgent" should be "planner" for planner-derived tasks. If you add a step from another agent, set sourceAgent accordingly.
-- Each step id must be a unique kebab-case string.
+ROADMAP RULES (CRITICAL — roadmap must be multi-agent, not planner-only):
+- A pre-extracted list of task candidates from ALL agents is provided under "--- Multi-Agent Task Candidates ---".
+- Each candidate is tagged [sourceAgent / phase]. You MUST use these as your primary source.
+- Convert each viable candidate into a roadmap step, setting "sourceAgent" to the tag shown (legal, finance, brand, social, research, planner).
+- Keep every actionable, specific task. Drop only true duplicates or vague sub-details.
+- Enrich each step with: why (specific to this business), prepared (what the launch package provides), action (exact next step with specifics), estimatedTime, cost.
+- Map steps to exactly 4 phases: Foundation (legal/admin/financial setup), Build (brand/product/website), Launch (content/social/outreach), Grow (revenue/retention/scale).
+- Output 15-22 roadmap steps total, in chronological order, distributed across phases.
+- Prefer legal/finance steps in Foundation, brand steps in Build, social/content steps in Launch, growth tactics in Grow.
+- Each step id must be a unique kebab-case string derived from the title.
 - NEVER invent generic placeholder steps. Every step must trace back to a specific agent deliverable.
 
 AGENT SUMMARIES RULES:
@@ -456,14 +503,33 @@ async function synthesizePresentation(
   const agentIds: AgentId[] = ["planner", "research", "legal", "finance", "brand", "social", "critic"];
   const businessContext = buildBusinessContext(intake);
 
-  // Extract structured tasks from planner output as canonical roadmap source
-  const plannerTasks = extractPlannerTasks(outputs.planner?.content ?? "");
-  const taskCandidates = plannerTasks.length > 0
-    ? `\n\n--- Planner-Derived Task Candidates (USE THESE AS ROADMAP SOURCE) ---\n${plannerTasks.map((t, i) => `${i + 1}. [${t.phase} / ${t.week}] ${t.title}`).join("\n")}`
+  // Extract structured tasks from ALL agents — each tagged with sourceAgent
+  const plannerTasks = extractPlannerTasks(outputs.planner?.content ?? "").map((t) => ({
+    sourceAgent: "planner" as AgentId,
+    title: t.title,
+    phase: t.phase,
+    week: t.week,
+  }));
+
+  const multiAgentTasks = [
+    ...plannerTasks,
+    ...extractAgentTasks("legal",    outputs.legal?.content    ?? "", "Foundation"),
+    ...extractAgentTasks("finance",  outputs.finance?.content  ?? "", "Foundation"),
+    ...extractAgentTasks("brand",    outputs.brand?.content    ?? "", "Build"),
+    ...extractAgentTasks("social",   outputs.social?.content   ?? "", "Launch"),
+    ...extractAgentTasks("research", outputs.research?.content ?? "", "Foundation", 4),
+  ];
+
+  const taskCandidates = multiAgentTasks.length > 0
+    ? `\n\n--- Multi-Agent Task Candidates (USE THESE AS ROADMAP SOURCE) ---\n${
+        multiAgentTasks
+          .map((t, i) => `${i + 1}. [${t.sourceAgent} / ${t.phase}] ${t.title}`)
+          .join("\n")
+      }`
     : "";
 
   const summaryInput = `${businessContext}\n\n` + agentIds
-    .map((id) => `--- ${AGENT_META[id].label} Output ---\n${outputs[id].content.slice(0, 3500)}`)
+    .map((id) => `--- ${AGENT_META[id].label} Output ---\n${outputs[id].content.slice(0, 2800)}`)
     .join("\n\n") + taskCandidates;
 
   emit({ type: "synthesis_started", timestamp: now() });
@@ -548,7 +614,16 @@ export async function orchestrate(
 ): Promise<Run> {
   const runId = uuidv4();
   const outputs = makeEmptyOutputs();
-  const initialNaming = await generateInitialNaming(intake);
+
+  // Use pre-selected name if the user chose one in the brand-selection step
+  const initialNaming = intake.selectedBusinessName
+    ? {
+        businessName: intake.selectedBusinessName,
+        nameSuggestions: buildNameSuggestions(intake.selectedBusinessName, intake.businessIdea),
+        tagline: undefined,
+      }
+    : await generateInitialNaming(intake);
+
   const baseContext = `${buildBusinessContext(intake)}
 
 --- Business Name (generated before planning) ---
@@ -716,12 +791,29 @@ ${plannerResult}`;
       presentation.selectedBusinessStructure = intake.entityPreference || "Not sure";
     }
 
-    if (!presentation.businessName || presentation.businessName === "Your Business") {
+    // Respect pre-selected business name (overrides synthesis result)
+    if (intake.selectedBusinessName) {
+      presentation.businessName = intake.selectedBusinessName;
+    } else if (!presentation.businessName || presentation.businessName === "Your Business") {
       presentation.businessName = initialNaming.businessName;
     }
 
     if (!presentation.tagline && initialNaming.tagline) {
       presentation.tagline = initialNaming.tagline;
+    }
+
+    // Respect pre-selected brand colors / font
+    if (intake.selectedAccentColor) {
+      presentation.brandTheme = {
+        ...presentation.brandTheme,
+        accentColor: intake.selectedAccentColor,
+      };
+    }
+    if (intake.selectedFontFamily) {
+      presentation.brandTheme = {
+        ...presentation.brandTheme,
+        fontFamily: intake.selectedFontFamily,
+      };
     }
 
     const generated = buildNameSuggestions(presentation.businessName, intake.businessIdea);
@@ -739,6 +831,47 @@ ${plannerResult}`;
   const hasErrors = Object.values(outputs).some((o) => o.status === "error");
 
   run.agent_outputs = outputs;
+
+  // Build the composed plan document from all agents (used by /results/[id]/plan)
+  const planDocument = `# Your Business Launch Package
+
+## Market Intelligence
+${researchResult}
+
+---
+
+## Legal Documents & Compliance
+${legalResult}
+
+---
+
+## Financial Setup Guide
+${financeResult}
+
+---
+
+## Brand Package
+${brandResult}
+
+---
+
+## Social Media Launch Kit
+${socialResult}
+
+---
+
+## 90-Day Launch Roadmap
+${plannerResult}
+
+---
+
+## Launch Readiness Review
+${criticResult}`;
+
+  if (presentation) {
+    presentation.planDocument = planDocument;
+  }
+
   run.presentation = presentation;
   run.final_output = `# Your Business Launch Package
 
