@@ -161,7 +161,7 @@ export default function RoadmapTimeline({
   const canFillPdf =
     businessState &&
     FORM_FILL_STATES.has(businessState) &&
-    selectedBusinessStructure === "LLC" &&
+    (!selectedBusinessStructure || selectedBusinessStructure === "LLC" || selectedBusinessStructure === "Not sure") &&
     businessName;
 
   const handleDownloadPdf = async () => {

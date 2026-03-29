@@ -436,17 +436,24 @@ CRITICAL: Return ONLY a valid JSON object — no markdown, no explanation, no pr
   ]
 }
 
-ROADMAP RULES (CRITICAL — roadmap must be multi-agent, not planner-only):
+ROADMAP RULES (CRITICAL — roadmap must be SPECIFIC TO THIS EXACT BUSINESS):
 - A pre-extracted list of task candidates from ALL agents is provided under "--- Multi-Agent Task Candidates ---".
 - Each candidate is tagged [sourceAgent / phase]. You MUST use these as your primary source.
-- Convert each viable candidate into a roadmap step, setting "sourceAgent" to the tag shown (legal, finance, brand, social, research, planner).
-- Keep every actionable, specific task. Drop only true duplicates or vague sub-details.
-- Enrich each step with: why (specific to this business), prepared (what the launch package provides), action (exact next step with specifics), estimatedTime, cost.
+- Convert each viable candidate into a roadmap step, setting "sourceAgent" to the tag shown.
+
+BUSINESS SPECIFICITY IS MANDATORY:
+- Every "title" must name THE SPECIFIC business, industry, product, customer, or market. NOT "Launch Landing Page" → instead "Launch Personal Training Landing Page Targeting Austin Professionals".
+- Every "why" must reference THIS founder's situation: their location, budget, competitors, customer segment, or niche — drawn from the agent outputs.
+- Every "action" must include the EXACT tool, website, form, or platform. NOT "File your entity" → instead "File LLC on Rhode Island Secretary of State portal (sos.ri.gov) — $150 filing fee".
+- Every "prepared" must cite what the SPECIFIC agent already produced. NOT "See your legal package" → instead "Legal Agent drafted your operating agreement outline and compliance checklist for Rhode Island LLCs".
+- Include real dollar amounts, real URLs, real platform names, real competitor names, real customer segment descriptions from the agent outputs.
+- If a step would be identical for any business in any industry, it is TOO GENERIC. Rewrite it with details from the agent outputs.
+
+STRUCTURE:
 - Map steps to exactly 4 phases: Foundation (legal/admin/financial setup), Build (brand/product/website), Launch (content/social/outreach), Grow (revenue/retention/scale).
 - Output 15-22 roadmap steps total, in chronological order, distributed across phases.
-- Prefer legal/finance steps in Foundation, brand steps in Build, social/content steps in Launch, growth tactics in Grow.
 - Each step id must be a unique kebab-case string derived from the title.
-- NEVER invent generic placeholder steps. Every step must trace back to a specific agent deliverable.
+- Drop only true duplicates or vague sub-details from the candidates. Keep every actionable task.
 
 AGENT SUMMARIES RULES:
 - Include ALL 7 agents in order: planner, research, legal, finance, brand, social, critic.
