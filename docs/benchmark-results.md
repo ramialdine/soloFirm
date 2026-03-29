@@ -33,14 +33,40 @@ This file captures same-day internal benchmark evidence from 3 real-mode runs wi
 - `Specific steps % = steps with business-specific nouns from intake / total steps`
 - `Automation start rate = runs with automation session started / total runs`
 
+## Per-agent timing (Run 1)
+
+Agent timings from `d9b34965` (5.24 min TLR). Full detail in [docs/evidence/run-proof.json](evidence/run-proof.json).
+
+| Agent | Duration (s) | Phase |
+|---|---:|---|
+| planner | 72.1 | Phase 1 (sequential) |
+| research | 66.6 | Phase 2 (parallel) |
+| legal | 76.3 | Phase 2 (parallel — critical path) |
+| finance | 63.4 | Phase 2 (parallel) |
+| brand | 56.3 | Phase 3 (sequential) |
+| social | 53.6 | Phase 4 (sequential) |
+| critic | 37.5 | Phase 5 (sequential) |
+| synthesis | 17.2 | Phase 6 (sequential) |
+
+Total accounted: 314.4s (5.24 min). Phase 2 critical path is `legal` at 76.3s — the parallel block resolves on its slowest agent.
+
+## Specificity validation (Run 1)
+
+- Steps before validation: 17
+- Steps after validation: 15
+- Rejected: 2 (reasons: vague verb "optimize"; no business-specific nouns from intake)
+- Specificity improvement: ~88% → 93% post-validation
+
 ## Observations
 
 - All 3 runs completed successfully with `status: complete` (no partial or error runs).
 - Step counts ranged from 14 to 16, all above the 12-step minimum threshold.
 - Specificity validation rejected 1-2 vague steps per run, improving the average specificity rate from ~88% (pre-validation) to 93% (post-validation).
-- TLR variance is primarily driven by agent response latency — parallel agents (research/legal/finance) dominate the critical path.
+- TLR variance is primarily driven by agent response latency — the Phase 2 parallel block (research/legal/finance) dominates the critical path, with `legal` as the bottleneck in Run 1 (76.3s).
 - The automation sidecar health check passed for all 3 runs; sessions started within 2 seconds of `run_complete`.
 
 ## Source data
 
 Raw benchmark data: [docs/benchmark-results.json](benchmark-results.json)
+
+Run 1 detailed artifact (agent timings, event count, specificity validation): [docs/evidence/run-proof.json](evidence/run-proof.json)
