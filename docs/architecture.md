@@ -102,6 +102,54 @@ Core `runs` columns used by runtime:
 - `presentation` (jsonb)
 - `created_at`, `completed_at` (timestamps)
 
+### Sample `agent_outputs` payload (abbreviated)
+
+```json
+{
+  "planner": {
+    "agentId": "planner",
+    "status": "complete",
+    "content": "## 90-Day Business Launch Roadmap\n\n### Week 1-2: Foundation\n- [ ] Register LLC in Rhode Island ($150 filing fee)...",
+    "startedAt": "2026-03-29T18:16:33.000Z",
+    "completedAt": "2026-03-29T18:17:05.000Z"
+  },
+  "legal": {
+    "agentId": "legal",
+    "status": "complete",
+    "content": "## Legal Package\n\n### Entity Formation Guide for Rhode Island...",
+    "startedAt": "2026-03-29T18:17:06.000Z",
+    "completedAt": "2026-03-29T18:17:38.000Z"
+  },
+  "finance": {
+    "agentId": "finance",
+    "status": "complete",
+    "content": "## Financial Setup Guide\n\n### Step-by-Step...",
+    "startedAt": "2026-03-29T18:17:06.000Z",
+    "completedAt": "2026-03-29T18:17:42.000Z"
+  }
+}
+```
+
+Each agent output stores full markdown content, status, and timing. The `presentation` column stores the synthesized result including `roadmap` (array of `RoadmapStep`), `brandTheme`, `agentSummaries`, and `planDocument`.
+
+### Sample `presentation.roadmap[0]` entry
+
+```json
+{
+  "id": "register-llc",
+  "title": "Register Your LLC in Rhode Island",
+  "week": "Week 1-2",
+  "phase": "Foundation",
+  "why": "Legal entity formation is the prerequisite for EIN, bank account, and all contracts",
+  "prepared": "Articles of Organization template pre-filled with your business name and state",
+  "action": "File at business.sos.ri.gov — $150 filing fee, 3-5 business day processing",
+  "actionUrl": "https://business.sos.ri.gov/CorpWeb/CorpSearch/CorpSearch.aspx",
+  "sourceAgent": "legal",
+  "estimatedTime": "30 minutes",
+  "cost": "$150"
+}
+```
+
 ## 6) Reliability controls
 
 - Timeout boundaries in orchestration
