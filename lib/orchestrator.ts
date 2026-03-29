@@ -7,6 +7,7 @@ import type {
   IntakeData,
   Presentation,
   AgentSummary,
+  RoadmapStep,
 } from "@/types/agents";
 import { AGENT_PROMPTS, AGENT_META } from "@/types/agents";
 import { CHAT_MODEL, getOpenAI } from "@/lib/openai";
@@ -384,6 +385,197 @@ function extractPlannerTasks(plannerOutput: string): PlannerTask[] {
   return tasks;
 }
 
+// ── Specificity validator ───────────────────────────────────────────────────
+// Rejects vague roadmap steps and enforces business-specific content.
+
+const CONCRETE_VERBS = new Set([
+  "register", "file", "open", "create", "purchase", "apply", "contact",
+  "set up", "configure", "draft", "submit", "build", "launch", "design",
+  "publish", "schedule", "send", "sign", "install", "connect", "upload",
+  "validate", "run", "interview", "negotiate", "review", "track",
+]);
+
+const VAGUE_VERBS = new Set([
+  "optimize", "improve", "consider", "explore", "leverage", "utilize",
+  "enhance", "maximize", "strategize", "brainstorm", "assess", "evaluate",
+]);
+
+interface SpecificityResult {
+  passed: boolean;
+  reason?: string;
+}
+
+function extractLeadVerb(title: string): string {
+  return title.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+}
+
+function validateStepSpecificity(
+  step: { title: string; action: string; why: string },
+  intakeNouns: string[]
+): SpecificityResult {
+  const leadVerb = extractLeadVerb(step.title);
+
+  // 1. Verb check: reject vague verbs
+  if (VAGUE_VERBS.has(leadVerb)) {
+    return { passed: false, reason: `vague verb "${leadVerb}"` };
+  }
+
+  // 2. Business noun check: title or action must contain at least one intake-specific noun
+  const combined = `${step.title} ${step.action}`.toLowerCase();
+  const hasBusinessNoun = intakeNouns.some((noun) => combined.includes(noun.toLowerCase()));
+  if (!hasBusinessNoun && intakeNouns.length > 0) {
+    return { passed: false, reason: "no business-specific nouns from intake" };
+  }
+
+  // 3. Actionability check: action must include a URL, dollar amount, or named entity
+  const hasUrl = /https?:\/\/|\.com|\.gov|\.org/.test(step.action);
+  const hasCost = /\$\d+|free/i.test(step.action);
+  const hasNamedEntity = /[A-Z][a-z]+(?:\s[A-Z][a-z]+)+/.test(step.action); // e.g., "Secretary of State"
+  if (!hasUrl && !hasCost && !hasNamedEntity) {
+    return { passed: false, reason: "action lacks URL, cost, or named entity" };
+  }
+
+  return { passed: true };
+}
+
+function extractIntakeNouns(intake: IntakeData): string[] {
+  const parts = [
+    intake.businessIdea,
+    intake.location,
+    intake.entityPreference,
+    intake.selectedBusinessName,
+  ].filter(Boolean);
+
+  const stop = new Set(["the", "and", "for", "with", "a", "an", "in", "on", "to", "of", "my", "i"]);
+  return parts
+    .join(" ")
+    .split(/[\s,]+/)
+    .filter((w) => w.length >= 3 && !stop.has(w.toLowerCase()))
+    .map((w) => w.toLowerCase());
+}
+
+function validateAndFilterRoadmap(
+  steps: RoadmapStep[],
+  intake: IntakeData
+): { valid: RoadmapStep[]; rejected: number } {
+  const nouns = extractIntakeNouns(intake);
+  const valid: RoadmapStep[] = [];
+  let rejected = 0;
+
+  // Dedup check: track titles to catch >80% overlap
+  const seen = new Set<string>();
+
+  for (const step of steps) {
+    const normalized = step.title.toLowerCase().replace(/[^a-z0-9\s]/g, "");
+    if (seen.has(normalized)) {
+      rejected++;
+      continue;
+    }
+
+    const result = validateStepSpecificity(step, nouns);
+    if (result.passed) {
+      valid.push(step);
+      seen.add(normalized);
+    } else {
+      rejected++;
+    }
+  }
+
+  return { valid, rejected };
+}
+
+// ── Deterministic fallback parser ───────────────────────────────────────────
+// When LLM returns malformed JSON, extract structured tasks from raw markdown.
+
+const AGENT_PHASE_MAP: Record<string, { phase: string; week: string }> = {
+  planner: { phase: "Foundation", week: "Week 1-2" },
+  legal: { phase: "Foundation", week: "Week 1-2" },
+  finance: { phase: "Foundation", week: "Week 2-3" },
+  research: { phase: "Build", week: "Week 3-4" },
+  brand: { phase: "Build", week: "Week 5-6" },
+  social: { phase: "Launch", week: "Week 7-8" },
+  critic: { phase: "Grow", week: "Week 9-12" },
+};
+
+const HEADING_AGENT_MAP: Record<string, AgentId> = {
+  plan: "planner", roadmap: "planner", launch: "planner",
+  legal: "legal", entity: "legal", compliance: "legal", llc: "legal",
+  financ: "finance", bank: "finance", ein: "finance", budget: "finance",
+  market: "research", competi: "research", customer: "research", research: "research",
+  brand: "brand", logo: "brand", identity: "brand", visual: "brand",
+  social: "social", content: "social", instagram: "social", linkedin: "social",
+  critic: "critic", risk: "critic", gap: "critic", review: "critic",
+};
+
+function inferAgentFromHeading(heading: string): AgentId {
+  const lower = heading.toLowerCase();
+  for (const [keyword, agent] of Object.entries(HEADING_AGENT_MAP)) {
+    if (lower.includes(keyword)) return agent;
+  }
+  return "planner";
+}
+
+function toKebabCase(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .slice(0, 50);
+}
+
+function parseFallbackRoadmap(
+  rawOutputs: Record<AgentId, AgentOutput>,
+  intake: IntakeData
+): RoadmapStep[] {
+  const steps: RoadmapStep[] = [];
+  const seenIds = new Set<string>();
+  let currentAgent: AgentId = "planner";
+
+  for (const [agentId, output] of Object.entries(rawOutputs)) {
+    if (!output?.content) continue;
+
+    const lines = output.content.split("\n");
+
+    for (const line of lines) {
+      // Detect headings to update current agent context
+      const headingMatch = line.match(/^#{1,3}\s+(.+)/);
+      if (headingMatch) {
+        currentAgent = inferAgentFromHeading(headingMatch[1]) || (agentId as AgentId);
+        continue;
+      }
+
+      // Extract bullet/checkbox lines as task candidates
+      const taskMatch = line.match(/^(?:- \[[ x]\] |[-*]\s+|\d+\.\s+)(.+)/);
+      if (!taskMatch) continue;
+
+      const title = taskMatch[1].trim();
+      if (title.length < 10 || title.length > 200) continue; // skip noise
+
+      const id = toKebabCase(title);
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+
+      const phaseInfo = AGENT_PHASE_MAP[currentAgent] ?? { phase: "Foundation", week: "Week 1" };
+
+      steps.push({
+        id,
+        title,
+        week: phaseInfo.week,
+        phase: phaseInfo.phase,
+        why: `Referenced in ${AGENT_META[currentAgent]?.label ?? currentAgent} output for ${intake.businessIdea.slice(0, 40)}.`,
+        prepared: `See ${AGENT_META[currentAgent]?.deliverable ?? "agent output"} for details.`,
+        action: title,
+        sourceAgent: currentAgent,
+        estimatedTime: "See details",
+        cost: "See details",
+      });
+    }
+  }
+
+  return steps.slice(0, 22); // cap at 22 steps
+}
+
 // ── Synthesis prompt ─────────────────────────────────────────────────────────
 
 const SYNTHESIS_PROMPT = `You are a brand synthesis engine. Given a business launch package from specialist agents AND a pre-extracted list of planner tasks, produce a cohesive presentation JSON.
@@ -580,12 +772,38 @@ async function synthesizePresentation(
     }
 
     if (parsed && parsed.businessName && parsed.agentSummaries) {
+      // Run specificity validator on synthesized roadmap steps
+      if (parsed.roadmap?.length) {
+        const { valid, rejected } = validateAndFilterRoadmap(parsed.roadmap, intake);
+        if (rejected > 0) {
+          console.log(`Specificity validator: kept ${valid.length}, rejected ${rejected} vague steps`);
+        }
+        parsed.roadmap = valid;
+
+        // If too many steps were rejected, supplement with fallback-parsed tasks
+        if (valid.length < 8) {
+          const fallbackSteps = parseFallbackRoadmap(outputs, intake);
+          const existingIds = new Set(valid.map((s) => s.id));
+          for (const fs of fallbackSteps) {
+            if (!existingIds.has(fs.id) && valid.length < 15) {
+              valid.push(fs);
+              existingIds.add(fs.id);
+            }
+          }
+          parsed.roadmap = valid;
+        }
+      }
+
       emit({ type: "synthesis_complete", presentation: parsed, timestamp: now() });
       return parsed;
     }
   } catch (err) {
     console.error("Synthesis failed:", err);
   }
+
+  // Deterministic fallback: extract roadmap from raw agent outputs when synthesis JSON fails
+  console.log("Synthesis JSON failed — activating deterministic fallback parser");
+  const fallbackSteps = parseFallbackRoadmap(outputs, intake);
 
   // Fallback: build a minimal presentation from raw outputs
   const fallback: Presentation = {
@@ -617,7 +835,8 @@ async function synthesizePresentation(
       headline: `${AGENT_META[id].deliverable} complete`,
       bullets: [AGENT_META[id].description],
     })),
-    roadmap: [
+    // Use deterministic fallback parser output if available, otherwise static defaults
+    roadmap: fallbackSteps.length >= 6 ? fallbackSteps : [
       { id: "choose-entity", title: "Choose Your Business Structure", week: "Week 1", phase: "Foundation", why: "Your liability protection and tax treatment depend on this decision.", prepared: "See your Legal Package for an entity comparison table.", action: "Review the Legal Agent's recommendation and decide on LLC vs S-Corp.", agentId: "legal", estimatedTime: "15 minutes", cost: "Free" },
       { id: "register-entity", title: "Register Your Business", week: "Week 1", phase: "Foundation", why: "You can't open a bank account or get an EIN without this.", prepared: "Your Legal Package includes a draft Articles of Organization.", action: "File with your state's Secretary of State office.", agentId: "legal", estimatedTime: "30 minutes", cost: "Varies by state" },
       { id: "apply-ein", title: "Apply for an EIN", week: "Week 1", phase: "Foundation", why: "Required for business banking, hiring, and tax filing.", prepared: "Your Financial Setup Guide has step-by-step EIN instructions.", action: "Apply online at irs.gov — instant approval.", actionUrl: "https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online", agentId: "finance", estimatedTime: "10 minutes", cost: "Free" },
