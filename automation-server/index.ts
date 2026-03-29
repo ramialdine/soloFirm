@@ -5,7 +5,8 @@ import type { AutomationStatus, AutomationLogEntry, AutomationParams, PlatformCr
 import { runSocialSetup } from "./automations/index";
 import { runMockSetup } from "./automations/mock";
 
-const TEST_MODE = process.env.TEST_MODE === "true";
+const AUTOMATION_TEST_MODE =
+  process.env.AUTOMATION_TEST_MODE === "true" || process.env.TEST_MODE === "true";
 
 const app = express();
 const PORT = process.env.AUTOMATION_PORT ? parseInt(process.env.AUTOMATION_PORT) : 3001;
@@ -105,7 +106,7 @@ app.post("/sessions", requireAuth, async (req, res) => {
 async function runAutomation(session: Session, params: AutomationParams) {
   emitStatus(session, "running");
 
-  if (TEST_MODE) {
+  if (AUTOMATION_TEST_MODE) {
     emitLog(session, "[TEST MODE] Skipping browser — using dummy data");
     const platforms = params.platforms ?? ["gmail", "instagram", "facebook", "twitter", "tiktok", "linkedin", "youtube"];
     try {

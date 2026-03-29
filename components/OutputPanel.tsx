@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Presentation, AgentId, AgentOutput } from "@/types/agents";
 import { SummaryCard } from "./AgentCard";
 import { AGENT_META } from "@/types/agents";
-import AccountSetupWizard from "./AccountSetupWizard";
 import RoadmapTimeline from "./RoadmapTimeline";
 
 // ── Legacy tabbed output (still used as a detail view) ──
@@ -123,11 +122,17 @@ export default function OutputPanel({ finalOutput, isComplete }: OutputPanelProp
 
 const AGENT_IDS: AgentId[] = ["planner", "research", "legal", "finance", "brand", "social", "critic"];
 
+const FONT_OPTIONS = [
+  "Inter", "Poppins", "Montserrat", "Roboto", "Open Sans",
+  "Lato", "Raleway", "Nunito", "Playfair Display", "Merriweather",
+  "Source Sans Pro", "Work Sans", "DM Sans", "Outfit", "Space Grotesk",
+  "IBM Plex Sans", "Manrope", "Sora",
+];
+
 interface PackagingPanelProps {
   presentation: Presentation;
   outputs: Record<AgentId, AgentOutput>;
   onPresentationChange: (updated: Presentation) => void;
-  onViewAgent?: (agentId: AgentId) => void;
   onFinalize: () => void;
   runId: string | null;
   saving?: boolean;
@@ -195,11 +200,9 @@ export function PackagingPanel({
   presentation,
   outputs,
   onPresentationChange,
-  onViewAgent,
   onFinalize,
   runId,
   saving,
-  businessLocation,
 }: PackagingPanelProps) {
   const { brandTheme } = presentation;
   const [logoLoading, setLogoLoading] = useState(false);
@@ -208,9 +211,24 @@ export function PackagingPanel({
   const nameSuggestions = deriveNameSuggestions(presentation, outputs.brand?.content ?? "");
 
   const currentLogoSvg = presentation.brandTemplate?.logoSvg ?? "";
-  const logoDownloadUrl = currentLogoSvg
-    ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(currentLogoSvg)}`
-    : "";
+
+  const handleDownloadSvg = useCallback(() => {
+    if (!currentLogoSvg) return;
+    const blob = new Blob([currentLogoSvg], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${presentation.businessName || "solofirm"}-logo.svg`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }, [currentLogoSvg, presentation.businessName]);
+
+  // Ensure AI-suggested font is in the dropdown
+  const fontOptions = FONT_OPTIONS.includes(brandTheme.fontFamily)
+    ? FONT_OPTIONS
+    : [brandTheme.fontFamily, ...FONT_OPTIONS];
 
   const generateLogo = async () => {
     setLogoLoading(true);
@@ -224,6 +242,7 @@ export function PackagingPanel({
           tagline: presentation.tagline,
           brandTheme: presentation.brandTheme,
           logoPrompt: presentation.brandTemplate?.logoPrompt,
+          businessContext: presentation.brandTemplate?.visualDirection,
         }),
       });
       if (!res.ok) {
@@ -259,19 +278,50 @@ export function PackagingPanel({
     }
   };
 
+  // Gate logo: require business name to be set before generating
+  const canGenerateLogo = presentation.businessName.trim().length > 0;
+
+  // Google Fonts URL for live preview
+  const fontUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(brandTheme.fontFamily)}:wght@400;600;700;800&display=swap`;
+
   return (
     <div className="space-y-6">
-      {/* Business identity header — editable */}
+      {/* Load selected Google Font */}
+      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+      <link rel="stylesheet" href={fontUrl} />
+
+      {/* ── HERO: 90-Day Roadmap ── */}
+      {presentation.roadmap && presentation.roadmap.length > 0 && (
+        <div
+          className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-sm"
+          style={{
+            background: `linear-gradient(180deg, ${brandTheme.accentColor}06 0%, white 30%)`,
+            fontFamily: `'${brandTheme.fontFamily}', sans-serif`,
+          }}
+        >
+          <RoadmapTimeline
+            steps={presentation.roadmap}
+            accentColor={brandTheme.accentColor}
+            selectedBusinessStructure={presentation.selectedBusinessStructure}
+            onBusinessStructureChange={(value) =>
+              onPresentationChange({ ...presentation, selectedBusinessStructure: value })
+            }
+            businessStructureOptions={["LLC", "S-Corp", "C-Corp", "Sole Proprietorship", "Not sure"]}
+          />
+        </div>
+      )}
+
+      {/* ── Business identity — name, tagline, theme ── */}
       <div
         className="relative overflow-hidden rounded-2xl border border-zinc-200 shadow-sm"
         style={{
           background: `linear-gradient(135deg, ${brandTheme.primaryColor}08 0%, ${brandTheme.accentColor}12 100%)`,
+          fontFamily: `'${brandTheme.fontFamily}', sans-serif`,
         }}
       >
         <div className="px-6 py-8 sm:px-8">
           <p className="text-xs font-medium uppercase tracking-widest text-zinc-400 mb-3">Your Business</p>
 
-          {/* Editable business name */}
           <input
             type="text"
             value={presentation.businessName}
@@ -279,10 +329,10 @@ export function PackagingPanel({
               onPresentationChange({ ...presentation, businessName: e.target.value })
             }
             className="block w-full bg-transparent text-3xl sm:text-4xl font-bold text-zinc-900 border-none outline-none placeholder:text-zinc-300 focus:ring-0 p-0"
+            style={{ fontFamily: `'${brandTheme.fontFamily}', sans-serif` }}
             placeholder="Business Name"
           />
 
-          {/* Editable tagline */}
           <input
             type="text"
             value={presentation.tagline}
@@ -293,7 +343,6 @@ export function PackagingPanel({
             placeholder="Your tagline"
           />
 
-          {/* Brand theme swatches — editable */}
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <span className="text-xs text-zinc-400 mr-1">Theme:</span>
             {(["primaryColor", "secondaryColor", "accentColor"] as const).map((key) => (
@@ -315,8 +364,7 @@ export function PackagingPanel({
                 />
               </label>
             ))}
-            <input
-              type="text"
+            <select
               value={brandTheme.fontFamily}
               onChange={(e) =>
                 onPresentationChange({
@@ -324,19 +372,24 @@ export function PackagingPanel({
                   brandTheme: { ...brandTheme, fontFamily: e.target.value },
                 })
               }
-              className="ml-2 rounded-lg border border-zinc-200 bg-white/80 px-3 py-1 text-xs text-zinc-600 w-28 focus:border-zinc-400 focus:outline-none"
-              placeholder="Font family"
-            />
+              className="ml-2 rounded-lg border border-zinc-200 bg-white/80 px-3 py-1.5 text-xs text-zinc-600 w-36 focus:border-zinc-400 focus:outline-none"
+            >
+              {fontOptions.map((font) => (
+                <option key={font} value={font} style={{ fontFamily: font }}>
+                  {font}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
 
-      {/* Business name questionnaire */}
+      {/* ── Name suggestions ── */}
       {nameSuggestions.length > 0 && (
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <h3 className="text-sm font-semibold text-zinc-800">Pick your business name</h3>
           <p className="mt-1 text-xs text-zinc-500">
-            Choose one option below, or keep editing the custom name above. Your selection will be reflected in your legal package.
+            Choose one option below, or keep editing the custom name above.
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {nameSuggestions.map((name) => {
@@ -351,6 +404,7 @@ export function PackagingPanel({
                       ? "border-zinc-900 bg-zinc-900 text-white"
                       : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
                   }`}
+                  style={{ fontFamily: `'${brandTheme.fontFamily}', sans-serif` }}
                 >
                   {name}
                 </button>
@@ -360,46 +414,35 @@ export function PackagingPanel({
         </div>
       )}
 
-      {/* Brand template + AI logo */}
+      {/* ── AI Logo ── */}
       <div className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-zinc-800">Brand template</h3>
-            <p className="text-xs text-zinc-500 mt-1">Generated by the Brand Agent and editable through your final package choices.</p>
+            <h3 className="text-sm font-semibold text-zinc-800">AI Logo</h3>
+            <p className="text-xs text-zinc-500 mt-1">
+              {canGenerateLogo
+                ? "Generate a logo using your brand identity."
+                : "Set your business name above to unlock logo generation."}
+            </p>
           </div>
           <button
             type="button"
             onClick={generateLogo}
-            disabled={logoLoading}
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-700 disabled:opacity-50"
+            disabled={logoLoading || !canGenerateLogo}
+            className="rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {logoLoading ? "Generating logo..." : "Generate AI Logo"}
+            {logoLoading ? "Generating..." : currentLogoSvg ? "Regenerate Logo" : "Generate AI Logo"}
           </button>
         </div>
 
         {logoError && (
-          <p className="mt-2 text-xs text-amber-700">
-            {logoError}
-          </p>
+          <p className="mt-2 text-xs text-amber-700">{logoError}</p>
         )}
-
-        {presentation.brandTemplate?.voice && (
-          <p className="mt-4 text-sm text-zinc-700"><span className="font-semibold">Voice:</span> {presentation.brandTemplate.voice}</p>
-        )}
-
-        {presentation.brandTemplate?.pillars?.length ? (
-          <div className="mt-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-1">Messaging pillars</p>
-            <ul className="list-disc ml-4 space-y-1 text-sm text-zinc-700">
-              {presentation.brandTemplate.pillars.map((p, i) => <li key={i}>{p}</li>)}
-            </ul>
-          </div>
-        ) : null}
 
         {presentation.brandTemplate?.logoSvg ? (
           <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">AI logo preview</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Logo preview</p>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -408,13 +451,13 @@ export function PackagingPanel({
                 >
                   Open
                 </button>
-                <a
-                  href={logoDownloadUrl}
-                  download={`${presentation.businessName || "solofirm"}-logo.svg`}
+                <button
+                  type="button"
+                  onClick={handleDownloadSvg}
                   className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:text-zinc-900"
                 >
-                  Download
-                </a>
+                  Download SVG
+                </button>
               </div>
             </div>
             <div
@@ -425,65 +468,22 @@ export function PackagingPanel({
         ) : null}
       </div>
 
-      {/* Roadmap timeline */}
-      {presentation.roadmap && presentation.roadmap.length > 0 && (
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-sm">
-          <RoadmapTimeline
-            steps={presentation.roadmap}
-            accentColor={brandTheme.accentColor}
-            onViewAgent={onViewAgent}
-            selectedBusinessStructure={presentation.selectedBusinessStructure}
-            onBusinessStructureChange={(value) =>
-              onPresentationChange({ ...presentation, selectedBusinessStructure: value })
-            }
-            businessStructureOptions={["LLC", "S-Corp", "C-Corp", "Sole Proprietorship", "Not sure"]}
-          />
-        </div>
-      )}
-
-      {/* Agent summary cards */}
-      <div>
-        <h3 className="mb-3 text-sm font-medium text-zinc-700">Your Launch Package</h3>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {AGENT_IDS.map((id) => {
-            const summary = presentation.agentSummaries.find((s) => s.agentId === id);
-            if (!summary || !outputs[id]?.content) return null;
-            return (
-              <SummaryCard
-                key={id}
-                agentId={id}
-                summary={summary}
-                content={id === "legal" ? withLegalSelections(outputs[id].content, presentation) : outputs[id].content}
-                brandTheme={brandTheme}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Account setup wizard */}
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <AccountSetupWizard
-          presentation={presentation}
-          businessLocation={businessLocation}
-        />
-      </div>
-
-      {/* Finalize bar */}
+      {/* ── Save bar ── */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
         <div>
-          <p className="text-sm font-medium text-zinc-700">Happy with your package?</p>
-          <p className="text-xs text-zinc-400">Edit the name, tagline, or colors above, then finalize.</p>
+          <p className="text-sm font-medium text-zinc-700">Happy with your roadmap and brand?</p>
+          <p className="text-xs text-zinc-400">Your progress is saved. Finalize to lock in your launch package.</p>
         </div>
         <div className="flex items-center gap-3">
           {runId && (
-            <button
-              type="button"
-              onClick={() => navigator.clipboard.writeText(`${window.location.origin}/results/${runId}`)}
+            <a
+              href={`/results/${runId}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="rounded-lg border border-zinc-200 px-4 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
             >
-              Copy link
-            </button>
+              View agent outputs
+            </a>
           )}
           <button
             type="button"
@@ -491,7 +491,7 @@ export function PackagingPanel({
             disabled={saving}
             className="rounded-xl bg-zinc-900 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Finalize & Save"}
+            {saving ? "Saving..." : "Save & Finalize"}
           </button>
         </div>
       </div>
@@ -533,13 +533,13 @@ export function PackagingPanel({
               >
                 Close
               </button>
-              <a
-                href={logoDownloadUrl}
-                download={`${presentation.businessName || "solofirm"}-logo.svg`}
+              <button
+                type="button"
+                onClick={handleDownloadSvg}
                 className="rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-700"
               >
                 Download SVG
-              </a>
+              </button>
             </div>
           </div>
         </div>
@@ -557,18 +557,24 @@ interface ResultsPresentationProps {
 
 export function ResultsPresentation({ presentation, outputs }: ResultsPresentationProps) {
   const { brandTheme } = presentation;
+  const fontUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(brandTheme.fontFamily)}:wght@400;600;700;800&display=swap`;
 
   return (
     <div className="space-y-6">
+      {/* Load selected Google Font */}
+      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+      <link rel="stylesheet" href={fontUrl} />
+
       {/* Business identity header */}
       <div
         className="relative overflow-hidden rounded-2xl border border-zinc-200 shadow-sm"
         style={{
           background: `linear-gradient(135deg, ${brandTheme.primaryColor}08 0%, ${brandTheme.accentColor}12 100%)`,
+          fontFamily: `'${brandTheme.fontFamily}', sans-serif`,
         }}
       >
         <div className="px-6 py-8 sm:px-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-zinc-900">{presentation.businessName}</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold text-zinc-900" style={{ fontFamily: `'${brandTheme.fontFamily}', sans-serif` }}>{presentation.businessName}</h1>
           <p className="mt-2 text-lg text-zinc-500">{presentation.tagline}</p>
           <div className="mt-5 flex items-center gap-2">
             {(["primaryColor", "secondaryColor", "accentColor"] as const).map((key) => (

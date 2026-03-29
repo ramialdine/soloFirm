@@ -4,12 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev:test:web": "TEST_MODE=true NEXT_DIST_DIR=.next-devtest next dev -p 3002",
+    "dev:test:web": "NEXT_DIST_DIR=.next-devtest next dev -p 3002",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "automation": "tsx automation-server/index.ts",
-    "automation:test": "TEST_MODE=true tsx automation-server/index.ts",
+    "automation:test": "AUTOMATION_TEST_MODE=true tsx automation-server/index.ts",
     "dev:full": "concurrently \"npm run dev\" \"npm run automation\"",
     "dev:test": "concurrently \"npm run dev:test:web\" \"npm run automation:test\""
   },

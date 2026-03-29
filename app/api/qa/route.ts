@@ -4,7 +4,8 @@ import type { IntakeData, QAHistoryEntry } from "@/types/agents";
 import { QA_ROUND1_PROMPT, QA_ROUND2_PROMPT, QA_FINALIZE_PROMPT } from "@/types/agents";
 
 export const maxDuration = 30;
-const TEST_MODE = process.env.TEST_MODE === "true";
+const AI_TEST_MODE =
+  process.env.AI_TEST_MODE === "true" || process.env.TEST_MODE === "true";
 
 function buildIntakeContext(intake: IntakeData): string {
   return `FOUNDER INTAKE:
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "businessIdea is required" }, { status: 400 });
     }
 
-    if (TEST_MODE) {
+    if (AI_TEST_MODE) {
       if (finalize) {
         return Response.json({
           plan: `## Business Overview\n${intake.businessIdea} is positioned for a fast, low-friction launch in ${intake.location}.\n\n## Target Market\nEarly adopters with high urgency and clear willingness to pay.\n\n## Revenue & Pricing Model\nSimple starter package + premium upsell path.\n\n## Competitive Positioning\nFaster execution and clearer onboarding than local alternatives.\n\n## Key Risks\nExecution consistency, channel fit, and cash discipline.\n\n## First 90 Days — Priorities\n1) Validate demand, 2) Formalize entity + banking, 3) Launch offer and acquisition loop.`,

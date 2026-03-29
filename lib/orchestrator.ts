@@ -12,7 +12,8 @@ import { AGENT_PROMPTS, AGENT_META } from "@/types/agents";
 import { CHAT_MODEL, getOpenAI } from "@/lib/openai";
 
 const AGENT_TIMEOUT_MS = 60_000;
-const TEST_MODE = process.env.TEST_MODE === "true";
+const AI_TEST_MODE =
+  process.env.AI_TEST_MODE === "true" || process.env.TEST_MODE === "true";
 
 type Emitter = (event: SSEEvent) => void;
 
@@ -49,6 +50,115 @@ function buildNameSuggestions(primary: string, idea: string): string[] {
   ];
 
   return Array.from(new Set(options)).slice(0, 6);
+}
+
+function extractIdeaKeywords(idea: string): string[] {
+  const stop = new Set([
+    "the", "and", "for", "with", "from", "that", "this", "your", "business", "service",
+    "company", "startup", "platform", "app", "tool", "online", "local", "based", "help",
+  ]);
+
+  return idea
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 4 && !stop.has(w))
+    .slice(0, 4)
+    .map(toTitleCase);
+}
+
+function buildConceptFallbackName(idea: string): string {
+  const keywords = extractIdeaKeywords(idea);
+  const core = keywords[0] || "Northstar";
+  const suffixes = ["Studio", "Works", "Labs", "Collective", "Foundry"];
+  const idx = Math.abs(
+    idea.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
+  ) % suffixes.length;
+  return `${core} ${suffixes[idx]}`;
+}
+
+function extractJsonObject(raw: string): Record<string, unknown> | null {
+  if (!raw?.trim()) return null;
+  try {
+    return JSON.parse(raw.trim()) as Record<string, unknown>;
+  } catch {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try {
+      return JSON.parse(match[0]) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  }
+}
+
+interface InitialNaming {
+  businessName: string;
+  nameSuggestions: string[];
+  tagline?: string;
+}
+
+async function generateInitialNaming(intake: IntakeData): Promise<InitialNaming> {
+  if (AI_TEST_MODE) {
+    const seed = toTitleCase(intake.businessIdea.split(/\s+/).slice(0, 2).join(" ") || "Solo Launch");
+    return {
+      businessName: `${seed} Studio`,
+      nameSuggestions: buildNameSuggestions(`${seed} Studio`, intake.businessIdea),
+      tagline: "From idea to launch in one run",
+    };
+  }
+
+  const fallbackName = buildConceptFallbackName(intake.businessIdea);
+  const fallback: InitialNaming = {
+    businessName: fallbackName,
+    nameSuggestions: buildNameSuggestions(fallbackName, intake.businessIdea),
+  };
+
+  try {
+    const openai = getOpenAI();
+    const response = await openai.chat.completions.create({
+      model: CHAT_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: `You are a startup naming strategist. Return ONLY JSON: {"businessName":"...","nameSuggestions":["..."],"tagline":"..."}.
+
+Rules:
+- businessName must be concept-driven and brandable, not just the first words from the user idea.
+- Keep names 1-3 words, pronounceable, and startup-ready.
+- Provide 4-6 nameSuggestions including businessName.
+- Ensure suggestions are distinct (not just suffix swaps).
+- tagline should reflect the business value proposition.
+- No markdown, no extra text.`,
+        },
+        {
+          role: "user",
+          content: `Business idea: ${intake.businessIdea}\nLocation: ${intake.location}\nBudget: ${intake.budgetRange}`,
+        },
+      ],
+      max_tokens: 400,
+    });
+
+    const raw = response.choices?.[0]?.message?.content ?? "";
+    const parsed = extractJsonObject(raw);
+    if (!parsed) return fallback;
+
+    const businessName =
+      (typeof parsed.businessName === "string" && parsed.businessName.trim()) || fallback.businessName;
+    const parsedSuggestions = Array.isArray(parsed.nameSuggestions)
+      ? parsed.nameSuggestions.filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+      : [];
+
+    return {
+      businessName: toTitleCase(businessName),
+      nameSuggestions: Array.from(
+        new Set([toTitleCase(businessName), ...parsedSuggestions.map((s) => toTitleCase(s)), ...fallback.nameSuggestions])
+      ).slice(0, 6),
+      tagline: typeof parsed.tagline === "string" ? parsed.tagline : undefined,
+    };
+  } catch {
+    return fallback;
+  }
 }
 
 function makeEmptyOutputs(): Record<AgentId, AgentOutput> {
@@ -92,7 +202,7 @@ async function callAgent(
 ): Promise<string> {
   emit({ type: "agent_started", agentId, timestamp: now() });
 
-  if (TEST_MODE) {
+  if (AI_TEST_MODE) {
     const mockContent: Record<AgentId, string> = {
       planner: `### Week 1-2\n- Validate offer with 10 customer interviews\n- Choose business structure and register entity\n- Apply for EIN and open business checking account\n\n### Week 3-6\n- Build MVP landing page and onboarding flow\n- Finalize pricing and pilot terms\n\n### Week 7-12\n- Launch outreach campaign and track conversion KPIs`,
       research: `### Market Snapshot\n- Primary customer segment identified with urgent pain\n- 5 local and online competitors analyzed\n- Pricing opportunity: premium-lite positioning with faster turnaround`,
@@ -232,15 +342,21 @@ Rules for roadmap (VERY IMPORTANT — this is the user's step-by-step journey):
 - "agentId" links to which agent's deliverable is most relevant for this step.
 - "estimatedTime" — how long this step takes (e.g., "15 minutes", "1-3 business days").
 - "cost" — what it costs, if anything. Use "Free" for free steps.
-- Cover these phases in order: Foundation (entity, EIN, bank), Legal & Compliance (licenses, insurance), Product & Brand (website, brand assets), Marketing & Launch (social, content, soft launch), Growth (first customers, metrics).
-- The first 3-4 steps should be things they can do TODAY.`;
+
+PHASE CONSTRAINTS (strict):
+- Week 1 MUST include ALL administrative setup: entity registration, EIN, bank account, domain purchase, Google Business Profile creation, and social media account creation. These are simple tasks — compress them into Week 1.
+- For social account setup: include one step per platform (Instagram, Facebook/Meta, X/Twitter, LinkedIn, TikTok — whichever are relevant). Action should say "Create [platform] business account using [business email]" with direct signup URL. Also include a step to set up Buffer (buffer.com) or Later for scheduling posts across all platforms.
+- Weeks 2-4: Brand assets, website, initial content creation.
+- Weeks 5-12: Growth execution — outreach, first customers, content cadence, metrics tracking, iteration.
+- Cover these phases in order: Foundation (entity, EIN, bank, domain, accounts — ALL in Week 1), Product & Brand (website, brand assets), Marketing & Launch (content, soft launch), Growth (first customers, metrics, iteration).
+- The first 5-6 steps should be things they can do TODAY in under 30 minutes each.`;
 
 async function synthesizePresentation(
   outputs: Record<AgentId, AgentOutput>,
   intake: IntakeData,
   emit: Emitter
 ): Promise<Presentation | null> {
-  if (TEST_MODE) {
+  if (AI_TEST_MODE) {
     const mock: Presentation = {
       businessName: "SoloSpark",
       nameSuggestions: ["SoloSpark", "LaunchFoundry", "FounderLift", "PilotGrid", "Northline Studio"],
@@ -364,7 +480,15 @@ export async function orchestrate(
 ): Promise<Run> {
   const runId = uuidv4();
   const outputs = makeEmptyOutputs();
-  const baseContext = buildBusinessContext(intake);
+  const initialNaming = await generateInitialNaming(intake);
+  const baseContext = `${buildBusinessContext(intake)}
+
+--- Business Name (generated before planning) ---
+${initialNaming.businessName}
+
+--- Candidate Name Options ---
+${initialNaming.nameSuggestions.map((n) => `- ${n}`).join("\n")}
+${initialNaming.tagline ? `\n\n--- Early Tagline Direction ---\n${initialNaming.tagline}` : ""}`;
 
   const run: Run = {
     id: runId,
@@ -494,16 +618,28 @@ ${socialResult}`;
   // ── Synthesis: derive presentation metadata ──
   const presentation = await synthesizePresentation(outputs, intake, emit);
 
-  if (presentation && !presentation.selectedBusinessStructure) {
-    presentation.selectedBusinessStructure = intake.entityPreference || "Not sure";
-  }
-
   if (presentation) {
+    if (!presentation.selectedBusinessStructure) {
+      presentation.selectedBusinessStructure = intake.entityPreference || "Not sure";
+    }
+
+    if (!presentation.businessName || presentation.businessName === "Your Business") {
+      presentation.businessName = initialNaming.businessName;
+    }
+
+    if (!presentation.tagline && initialNaming.tagline) {
+      presentation.tagline = initialNaming.tagline;
+    }
+
     const generated = buildNameSuggestions(presentation.businessName, intake.businessIdea);
     const merged = Array.from(
-      new Set([...(presentation.nameSuggestions ?? []), ...generated])
+      new Set([
+        ...initialNaming.nameSuggestions,
+        ...(presentation.nameSuggestions ?? []),
+        ...generated,
+      ])
     );
-    presentation.nameSuggestions = merged.slice(0, 6);
+    presentation.nameSuggestions = merged.slice(0, 8);
   }
 
   // ── Finalize ──

@@ -3,7 +3,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import AgentCard from "./AgentCard";
 import OutputPanel, { PackagingPanel } from "./OutputPanel";
-import AutomationPanel from "./AutomationPanel";
 import { MarkdownBody } from "./OutputPanel";
 import type {
   AgentId,
@@ -19,7 +18,7 @@ import { AGENT_META } from "@/types/agents";
 
 const AGENT_IDS: AgentId[] = ["planner", "research", "legal", "finance", "brand", "social", "critic"];
 
-type Step = "intake" | "qa" | "running" | "packaging" | "complete" | "automation";
+type Step = "intake" | "qa" | "running" | "packaging" | "complete";
 
 const STAGES = [
   { value: "Solo", label: "Solo founder" },
@@ -212,7 +211,7 @@ export default function AgentOrchestrator() {
       const saved = sessionStorage.getItem(STORAGE_KEY);
       if (saved) {
         const state = JSON.parse(saved);
-        if (state.step === "packaging" || state.step === "complete") {
+        if (state.step === "packaging" || state.step === "social-setup" || state.step === "complete") {
           setStep(state.step);
           setIntake(state.intake);
           setOutputs(state.outputs);
@@ -552,7 +551,6 @@ export default function AgentOrchestrator() {
     if (!runId || !presentation) return;
     setSaving(true);
     try {
-      // Persist updated presentation to Supabase via a lightweight API call
       await fetch("/api/finalize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -572,6 +570,13 @@ export default function AgentOrchestrator() {
     return `## Selected Filing Details\n- Business Name: **${presentation.businessName}**\n- Entity Structure: **${presentation.selectedBusinessStructure ?? "Not selected yet"}**\n\n---\n\n${base}`;
   }, [outputs, presentation]);
 
+  // Scroll to top on stage transitions
+  useEffect(() => {
+    if (step === "packaging" || step === "complete") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [step]);
+
   // ── RENDER ────────────────────────────────────────────────────────────────
 
   return (
@@ -583,8 +588,8 @@ export default function AgentOrchestrator() {
           { key: "intake", label: "Your Business" },
           { key: "qa", label: "Quick Questions" },
           { key: "running", label: "Agents Working" },
-          { key: "packaging", label: "Your Brand" },
-          { key: "complete", label: "Launch Package" },
+          { key: "packaging", label: "Your Roadmap" },
+          { key: "complete", label: "Launch Ready" },
         ].map((s, i, arr) => {
           const stepOrder = ["intake", "qa", "running", "packaging", "complete"];
           const currentIdx = stepOrder.indexOf(step);
@@ -973,7 +978,7 @@ export default function AgentOrchestrator() {
             </div>
             <h2 className="text-2xl font-bold text-zinc-900">Your business is ready</h2>
             <p className="mt-2 text-sm text-zinc-500 max-w-md mx-auto">
-              7 AI agents have built your complete launch package. Review your brand, tweak anything you want, then finalize.
+              7 AI agents have built your complete launch package. Follow your 90-day roadmap to bring it all to life.
             </p>
           </div>
 
@@ -981,7 +986,6 @@ export default function AgentOrchestrator() {
             presentation={presentation}
             outputs={outputs}
             onPresentationChange={setPresentation}
-            onViewAgent={(agentId) => setExpandedAgent(agentId)}
             onFinalize={handleFinalize}
             runId={runId}
             saving={saving}
@@ -991,84 +995,85 @@ export default function AgentOrchestrator() {
       )}
 
       {/* ══════════════════════════════════════════════════════ */}
-      {/* STEP 5: COMPLETE — final saved state                  */}
+      {/* STEP 5: COMPLETE — launch ready                       */}
       {/* ══════════════════════════════════════════════════════ */}
       {step === "complete" && (
-        <>
-          {presentation ? (
-            <PackagingPanel
-              presentation={presentation}
-              outputs={outputs}
-              onPresentationChange={setPresentation}
-              onViewAgent={(agentId) => setExpandedAgent(agentId)}
-              onFinalize={handleFinalize}
-              runId={runId}
-              saving={saving}
-            />
-          ) : (
-            <OutputPanel finalOutput={finalOutput} isComplete={true} />
-          )}
-
-          {runId && (
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white px-4 py-3">
-              <p className="text-sm text-zinc-600">
-                Shareable link:{" "}
-                <a href={`/results/${runId}`} className="font-medium text-blue-600 hover:underline">
-                  /results/{runId}
-                </a>
-              </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => navigator.clipboard.writeText(`${window.location.origin}/results/${runId}`)}
-                  className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-900"
-                >
-                  Copy link
-                </button>
-                <button
-                  type="button"
-                  onClick={handleStartOver}
-                  className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-900"
-                >
-                  New analysis
-                </button>
-              </div>
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white px-6 py-10 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                <path d="M22 4L12 14.01l-3-3" />
+              </svg>
             </div>
-          )}
-
-          {/* Account setup CTA */}
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-lg">🚀</div>
-              <div className="flex-1">
-                <p className="font-semibold text-zinc-900">Create your accounts automatically</p>
-                <p className="mt-1 text-sm text-zinc-500">
-                  Your Social Media launch kit is ready. Let an AI agent open Gmail and Instagram, fill in your details, and set up your accounts — you only need to verify your phone.
-                </p>
-                <button
-                  onClick={() => setStep("automation")}
-                  className="mt-3 flex items-center gap-2 rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-700"
-                >
-                  Start Guided Setup →
-                </button>
-              </div>
-            </div>
+            <h2 className="text-3xl font-bold text-zinc-900">{presentation?.businessName ?? "Your Business"} is Launch Ready</h2>
+            <p className="mt-2 text-sm text-zinc-500 max-w-md mx-auto">
+              Your launch package has been saved. Follow the roadmap, check off each step, and build momentum week by week.
+            </p>
           </div>
-        </>
-      )}
 
-      {/* ══════════════════════════════════════════════════════ */}
-      {/* STEP 6: AUTOMATION — browser account setup           */}
-      {/* ══════════════════════════════════════════════════════ */}
-      {step === "automation" && (
-        <div className="space-y-2">
-          <button
-            onClick={() => setStep("complete")}
-            className="flex items-center gap-1 text-sm text-zinc-400 hover:text-zinc-700 mb-2"
-          >
-            ← Back to results
-          </button>
-          <AutomationPanel businessName={intake.businessIdea.split(" ").slice(0, 3).join(" ")} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setStep("packaging")}
+              className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:border-zinc-300 transition-colors text-left"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-zinc-900">Back to 90-Day Roadmap</p>
+                <p className="text-xs text-zinc-500">Track progress and check off steps</p>
+              </div>
+            </button>
+
+            {runId && (
+              <a
+                href={`/results/${runId}`}
+                className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:border-zinc-300 transition-colors"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-zinc-900">View Full Agent Outputs</p>
+                  <p className="text-xs text-zinc-500">All 7 agent reports in detail</p>
+                </div>
+              </a>
+            )}
+
+            {runId && (
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(`${window.location.origin}/results/${runId}`)}
+                className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:border-zinc-300 transition-colors text-left"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#71717a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900">Copy Shareable Link</p>
+                  <p className="text-xs text-zinc-500">Share your launch package with others</p>
+                </div>
+              </button>
+            )}
+          </div>
+
+          <div className="text-center pt-2">
+            <button
+              type="button"
+              onClick={handleStartOver}
+              className="text-sm text-zinc-400 hover:text-zinc-700 transition-colors"
+            >
+              Start a new business analysis
+            </button>
+          </div>
         </div>
       )}
 

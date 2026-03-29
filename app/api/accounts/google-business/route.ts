@@ -2,10 +2,11 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { google } from "googleapis";
 
-const TEST_MODE = process.env.TEST_MODE === "true";
+const ACCOUNTS_TEST_MODE =
+  process.env.ACCOUNTS_TEST_MODE === "true" || process.env.TEST_MODE === "true";
 
 export async function POST(req: NextRequest) {
-  if (TEST_MODE) {
+  if (ACCOUNTS_TEST_MODE) {
     const body = await req.json();
     const businessName = body?.businessName || "Test Business";
     return Response.json({
