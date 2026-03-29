@@ -1,9 +1,9 @@
-import { notFound } from "next/navigation";
 import { getRun } from "@/lib/get-run";
 import type { AgentId } from "@/types/agents";
 import { AGENT_META } from "@/types/agents";
 import { MarkdownBody } from "@/components/OutputPanel";
 import { SummaryCard } from "@/components/AgentCard";
+import AgentOutputsLoader from "./agent-outputs-loader";
 
 const AGENT_IDS: AgentId[] = [
   "planner",
@@ -23,14 +23,14 @@ export default async function ResultsPage({
   const { id } = await params;
   const run = await getRun(id);
 
+  // No Supabase data yet — client reads from sessionStorage
   if (!run) {
-    notFound();
+    return <AgentOutputsLoader runId={id} />;
   }
 
   const hasPresentation = run.presentation && run.presentation.businessName;
 
   if (!hasPresentation) {
-    // Legacy fallback: no presentation data — show raw agent outputs
     return (
       <div className="space-y-6">
         <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -78,7 +78,6 @@ export default async function ResultsPage({
     );
   }
 
-  // Presentation view: agent summary cards
   const presentation = run.presentation!;
   const { brandTheme } = presentation;
   const fontUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(brandTheme.fontFamily)}:wght@400;600;700;800&display=swap`;
@@ -88,7 +87,6 @@ export default async function ResultsPage({
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <link rel="stylesheet" href={fontUrl} />
 
-      {/* Brand identity header */}
       <div
         className="relative overflow-hidden rounded-2xl border border-zinc-200 shadow-sm"
         style={{
@@ -121,7 +119,6 @@ export default async function ResultsPage({
         </div>
       </div>
 
-      {/* Agent summary cards */}
       <div>
         <h2 className="mb-4 text-sm font-semibold text-zinc-700 uppercase tracking-wide">
           Agent Deliverables
