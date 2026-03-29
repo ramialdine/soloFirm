@@ -76,7 +76,7 @@ function extractState(location?: string): string | undefined {
 }
 
 function isEntityStep(step: RoadmapStep): boolean {
-  return /register.*business|file.*llc|incorporate|articles.*organization|business formation|\bentity\b|business structure/i.test(step.title + " " + step.id);
+  return /register.*business|file.*llc|\bllc\b|incorporate|articles.*organization|business formation|\bentity\b|business structure/i.test(step.title + " " + step.id);
 }
 
 function isEINStep(step: RoadmapStep): boolean {
