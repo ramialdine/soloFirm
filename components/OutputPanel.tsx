@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import type { Presentation, AgentId, AgentOutput } from "@/types/agents";
 import { SummaryCard } from "./AgentCard";
 import { AGENT_META } from "@/types/agents";
+import AccountSetupWizard from "./AccountSetupWizard";
 
 // ── Legacy tabbed output (still used as a detail view) ──
 
@@ -128,6 +129,7 @@ interface PackagingPanelProps {
   onFinalize: () => void;
   runId: string | null;
   saving?: boolean;
+  businessLocation?: string;
 }
 
 export function PackagingPanel({
@@ -137,6 +139,7 @@ export function PackagingPanel({
   onFinalize,
   runId,
   saving,
+  businessLocation,
 }: PackagingPanelProps) {
   const { brandTheme } = presentation;
 
@@ -230,6 +233,14 @@ export function PackagingPanel({
             );
           })}
         </div>
+      </div>
+
+      {/* Account setup wizard */}
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <AccountSetupWizard
+          presentation={presentation}
+          businessLocation={businessLocation}
+        />
       </div>
 
       {/* Finalize bar */}

@@ -20,6 +20,40 @@ export interface AgentOutput {
   error?: string;
 }
 
+// ── Account Setup ──
+
+export type PlatformId =
+  | "google-business"
+  | "youtube"
+  | "instagram"
+  | "facebook"
+  | "twitter"
+  | "tiktok"
+  | "linkedin";
+
+export type AccountStatus = "not-started" | "in-progress" | "created" | "skipped";
+
+export interface PlatformAccount {
+  platformId: PlatformId;
+  status: AccountStatus;
+  username?: string;
+  url?: string;
+}
+
+export interface PlatformSetupData {
+  platformId: PlatformId;
+  label: string;
+  icon: string; // SVG path
+  signupUrl: string;
+  canAutoCreate: boolean;
+  fields: {
+    displayName: string;
+    username: string;
+    bio: string;
+    category?: string;
+  };
+}
+
 // ── Intake & Q&A ──
 
 export interface IntakeData {

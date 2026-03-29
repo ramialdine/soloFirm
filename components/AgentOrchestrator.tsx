@@ -936,6 +936,7 @@ export default function AgentOrchestrator() {
             onFinalize={handleFinalize}
             runId={runId}
             saving={saving}
+            businessLocation={intake.location}
           />
         </>
       )}
