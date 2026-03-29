@@ -1252,6 +1252,7 @@ export default function AgentOrchestrator() {
             runId={runId}
             saving={saving}
             businessLocation={intake.location}
+            teamSize={intake.teamSize}
           />
         </>
       )}

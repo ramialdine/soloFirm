@@ -137,6 +137,7 @@ interface PackagingPanelProps {
   runId: string | null;
   saving?: boolean;
   businessLocation?: string;
+  teamSize?: string;
 }
 
 function titleCase(value: string): string {
@@ -312,6 +313,7 @@ export function PackagingPanel({
   runId,
   saving,
   businessLocation,
+  teamSize,
 }: PackagingPanelProps) {
   const { brandTheme } = presentation;
 
@@ -353,6 +355,8 @@ export function PackagingPanel({
             businessStructureOptions={["LLC", "S-Corp", "C-Corp", "Sole Proprietorship", "Not sure"]}
             businessState={businessLocation}
             runId={runId ?? undefined}
+            businessName={presentation.businessName}
+            teamSize={teamSize}
             onViewAgent={(agentId) => {
               document.getElementById(`agent-card-${agentId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
             }}

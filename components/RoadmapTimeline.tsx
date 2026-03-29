@@ -77,6 +77,9 @@ function resolveActionUrl(step: RoadmapStep, businessState?: string, businessStr
   return step.actionUrl;
 }
 
+/** States that have PDF form filling support */
+const FORM_FILL_STATES = new Set(["Rhode Island"]);
+
 interface RoadmapTimelineProps {
   steps: RoadmapStep[];
   accentColor?: string;
@@ -86,6 +89,8 @@ interface RoadmapTimelineProps {
   businessStructureOptions?: string[];
   businessState?: string;
   runId?: string;
+  businessName?: string;
+  teamSize?: string;
 }
 
 // Group steps by phase
@@ -111,8 +116,12 @@ export default function RoadmapTimeline({
   businessStructureOptions,
   businessState,
   runId,
+  businessName,
+  teamSize,
 }: RoadmapTimelineProps) {
   const storageKey = runId ? `solofirm_roadmap_${runId}` : "solofirm_roadmap_progress";
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   // Track which steps the user has checked off (persisted to localStorage per run)
   const [completed, setCompleted] = useState<Set<string>>(() => {
@@ -148,6 +157,46 @@ export default function RoadmapTimeline({
   const progress = steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : 0;
 
   const phaseGroups = groupByPhase(steps);
+
+  const canFillPdf =
+    businessState &&
+    FORM_FILL_STATES.has(businessState) &&
+    selectedBusinessStructure === "LLC" &&
+    businessName;
+
+  const handleDownloadPdf = async () => {
+    if (!businessName || !businessState) return;
+    setPdfLoading(true);
+    setPdfError(null);
+    try {
+      const res = await fetch("/api/docs/fill-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessName,
+          teamSize: teamSize ?? "Solo",
+          state: businessState,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(err.error ?? "Failed to generate PDF");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${businessName.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "-")}-Articles-of-Organization.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setPdfError(err instanceof Error ? err.message : "Failed to generate PDF");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -392,6 +441,35 @@ export default function RoadmapTimeline({
                                 </a>
                               );
                             })()}
+                            {isEntityStep(step) && canFillPdf && (
+                              <button
+                                type="button"
+                                onClick={handleDownloadPdf}
+                                disabled={pdfLoading}
+                                className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-50"
+                              >
+                                {pdfLoading ? (
+                                  <>
+                                    <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round"/>
+                                    </svg>
+                                    Generating...
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                      <polyline points="7 10 12 15 17 10"/>
+                                      <line x1="12" y1="15" x2="12" y2="3"/>
+                                    </svg>
+                                    Download Pre-filled Form
+                                  </>
+                                )}
+                              </button>
+                            )}
+                            {pdfError && isEntityStep(step) && (
+                              <p className="text-xs text-red-500 w-full">{pdfError}</p>
+                            )}
                             <button
                               type="button"
                               onClick={() => toggleComplete(step.id)}
