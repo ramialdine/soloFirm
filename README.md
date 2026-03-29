@@ -120,6 +120,8 @@ Primary app routes:
 - `GET /api/webhooks/run-complete`
 - `GET /api/automation/health`
 - `POST /api/automation/sessions`
+- `GET /api/automation/sessions/:id/events` (SSE proxy)
+- `POST /api/automation/sessions/:id/resume`
 - `POST /api/accounts/google-business`
 - `POST /api/accounts/youtube`
 - `POST /api/brand/logo`

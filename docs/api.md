@@ -413,14 +413,62 @@ Status codes:
 
 Implementation: [app/api/automation/sessions/route.ts](../app/api/automation/sessions/route.ts)
 
+### GET /api/automation/sessions/:id/events
+
+Purpose: Proxy SSE event stream from the sidecar for a running automation session. Streams `status`, `log`, and `screenshot` events as the session progresses.
+
+Response:
+
+- `text/event-stream` — proxied directly from the sidecar event stream.
+
+Status codes:
+
+- `200` stream established
+- `404` session not found or sidecar unavailable
+
+Implementation: [app/api/automation/sessions/[id]/events/route.ts](../app/api/automation/sessions/[id]/events/route.ts)
+
+### POST /api/automation/sessions/:id/resume
+
+Purpose: Proxy a resume signal to the sidecar for a paused automation session (e.g., after phone verification or CAPTCHA).
+
+Request body:
+
+- Forwarded as-is to the sidecar (typically `{ input: string }` for the resume value).
+
+Response:
+
+- Mirrors sidecar response/status.
+
+Status codes:
+
+- `2xx` resume accepted
+- `4xx/5xx` bubbled from sidecar proxy path
+
+Implementation: [app/api/automation/sessions/[id]/resume/route.ts](../app/api/automation/sessions/[id]/resume/route.ts)
+
 ### POST /api/accounts/google-business
 
-Purpose: Create or update Google Business profile with OAuth session context.
+Purpose: Create a Google Business Profile location using OAuth session credentials. Requires an existing Google Business account; if none exists, returns a `400` with guidance to create one at business.google.com first.
+
+Request body:
+
+- `businessName` (required)
+- `address` (optional: `{ street, city, state, zip }`)
+- `phone` (optional)
+- `website` (optional)
+- `category` (optional, e.g. `"Mobile Car Detailing"`)
+- `description` (optional)
+
+Response:
+
+- `{ ok: true, locationName, title, message }` on success.
+- `{ error }` on failure.
 
 Status codes:
 
 - `200` success
-- `400` invalid payload
+- `400` missing `businessName` or no Google Business account found
 - `401` no valid auth session
 - `5xx` provider or proxy failure
 
@@ -428,12 +476,22 @@ Implementation: [app/api/accounts/google-business/route.ts](../app/api/accounts/
 
 ### POST /api/accounts/youtube
 
-Purpose: Configure YouTube channel details with OAuth session context.
+Purpose: Update YouTube channel branding (title and description) for the authenticated Google account's existing channel. If no channel exists, returns `ok: false` with a link to youtube.com/create_channel — YouTube does not expose a channel-creation API.
+
+Request body:
+
+- `channelName` (required)
+- `description` (optional)
+
+Response:
+
+- Existing channel found: `{ ok: true, channelId, url, message, existing: true }`
+- No channel found: `{ ok: false, error, createUrl }`
 
 Status codes:
 
-- `200` success
-- `400` invalid payload
+- `200` success (channel updated or channel-not-found guidance returned)
+- `400` missing `channelName`
 - `401` no valid auth session
 - `5xx` provider or proxy failure
 
