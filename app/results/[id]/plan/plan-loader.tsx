@@ -46,6 +46,7 @@ export default function PlanPageLoader({ runId }: { runId: string }) {
       businessName={
         run?.presentation?.businessName ?? run?.domain ?? "Your Business"
       }
+      runId={runId}
       brandTheme={run?.presentation?.brandTheme}
       roadmapSteps={run?.presentation?.roadmap ?? []}
     />

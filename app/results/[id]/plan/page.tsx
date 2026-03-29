@@ -25,6 +25,7 @@ export default async function PlanPage({
           businessName={
             presentation?.businessName ?? run.domain ?? "Your Business"
           }
+          runId={id}
           brandTheme={presentation?.brandTheme}
           roadmapSteps={presentation?.roadmap ?? []}
         />
