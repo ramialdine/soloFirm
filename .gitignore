@@ -28,6 +28,7 @@
 .DS_Store
 *.pem
 /public/forms/
+.mcp.json
 
 # debug
 npm-debug.log*

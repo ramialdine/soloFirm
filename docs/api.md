@@ -58,6 +58,7 @@ Request body:
 - `businessIdea` (required)
 - `location`, `budgetRange`, `entityPreference`, `teamSize` (optional)
 - `documents`, `clarifyingAnswers`, `planSummary` (optional)
+- `selectedBusinessName`, `selectedAccentColor`, `selectedFontFamily` (optional, from pre-run brand selection)
 
 Response:
 

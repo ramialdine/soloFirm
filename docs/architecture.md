@@ -20,7 +20,7 @@
 5. Synthesis emits a `Presentation` with roadmap and summaries.
 6. Results are persisted.
 7. Optional `run_complete` webhooks are delivered to configured partner URLs.
-7. Optional automation session is started through `POST /api/automation/sessions`.
+8. Optional automation session is started through `POST /api/automation/sessions`.
 
 ## 2.1 Sequence diagram (runtime)
 
