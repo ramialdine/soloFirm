@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Run } from "@/types/agents";
+import { getRunFromSession } from "@/lib/run-session";
 import PlanPageClient from "./plan-client";
 
 export default function PlanPageLoader({ runId }: { runId: string }) {
@@ -9,10 +10,7 @@ export default function PlanPageLoader({ runId }: { runId: string }) {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem(`run_${runId}`);
-      if (stored) setRun(JSON.parse(stored));
-    } catch { /* non-fatal */ }
+    setRun(getRunFromSession(runId));
     setChecked(true);
   }, [runId]);
 
