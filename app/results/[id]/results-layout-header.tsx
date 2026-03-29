@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Run } from "@/types/agents";
+import { getRunFromSession } from "@/lib/run-session";
 
 interface Props {
   runId: string;
@@ -23,15 +23,12 @@ export default function ResultsLayoutHeader({
   useEffect(() => {
     // If server didn't have the run yet, read from sessionStorage
     if (!serverBusinessName) {
-      try {
-        const stored = sessionStorage.getItem(`run_${runId}`);
-        if (stored) {
-          const run: Run = JSON.parse(stored);
-          setBusinessName(run.presentation?.businessName ?? run.domain ?? "Your Business");
-          setStatus(run.status);
-          setCreatedAt(run.created_at);
-        }
-      } catch { /* non-fatal */ }
+      const run = getRunFromSession(runId);
+      if (run) {
+        setBusinessName(run.presentation?.businessName ?? run.domain ?? "Your Business");
+        setStatus(run.status);
+        setCreatedAt(run.created_at);
+      }
     }
   }, [runId, serverBusinessName]);
 

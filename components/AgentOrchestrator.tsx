@@ -17,6 +17,7 @@ import type {
   Presentation,
 } from "@/types/agents";
 import { AGENT_META } from "@/types/agents";
+import { saveRunToSession } from "@/lib/run-session";
 
 const AGENT_IDS: AgentId[] = ["planner", "research", "legal", "finance", "brand", "social", "critic"];
 
@@ -604,12 +605,7 @@ export default function AgentOrchestrator() {
                 // Persist run in sessionStorage so result pages can render even if
                 // Supabase hasn't flushed yet (avoids 404 on navigation).
                 if (completedRunId && event.run) {
-                  try {
-                    sessionStorage.setItem(
-                      `run_${completedRunId}`,
-                      JSON.stringify(event.run)
-                    );
-                  } catch { /* storage full — non-fatal */ }
+                  saveRunToSession(event.run);
                   router.push(`/results/${completedRunId}/plan`);
                 } else {
                   setStep("packaging"); // fallback if no runId
