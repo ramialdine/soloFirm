@@ -31,9 +31,8 @@ To integrate with SoloFirm as a third-party developer (e.g., incubator dashboard
 
 ## Versioning and rate limits
 
-- Versioning: current version is implicit `v1` (path-stable for this hackathon).
-- Planned: explicit `/api/v1/...` pathing post-hackathon.
-- Rate limits: no hard limit yet in code; recommended gateway/app-level throttling for production.
+- Versioning: current version is implicit `v1` (path-stable for this hackathon). No explicit `/api/v1/...` pathing yet.
+- Rate limits: no hard limit enforced in code.
 
 ## App API routes
 
@@ -599,13 +598,6 @@ Sidecar health check.
 
 Implementation: [automation-server/index.ts](../automation-server/index.ts)
 
-## API consumer story (incubator workflow)
+## API consumer example
 
-Example: an incubator tracks founder progress weekly.
-
-1. Incubator backend stores `RUNS_API_KEY` and calls `GET /api/runs/export?limit=100&format=json`.
-2. It ingests `status`, `created_at`, `completed_at`, and `presentation` to compute completion and TLR stats.
-3. Program managers open specific run details using `GET /api/runs/:id`.
-4. The incubator dashboard maps each run to cohort milestones (plan-ready, roadmap-ready, automation-started).
-
-This gives external stakeholders structured, machine-readable access without coupling to UI internals.
+The run-read and export endpoints are designed so external tools (e.g., an incubator dashboard) could call `GET /api/runs/export` and `GET /api/runs/:id` to pull structured run data. No external integrations are implemented yet — these endpoints are available for future use.

@@ -167,39 +167,13 @@ Each agent output stores full markdown content, status, and timing. The `present
 - Browser-based automation is inherently variable by provider UI changes.
 - Local fallback storage is single-node and intended for demo reliability, not multi-instance production use.
 
-## 8) Scale path (post-demo)
+## 8) Scale path (not yet implemented)
 
-1. Queue-backed orchestration workers (BullMQ/Temporal).
-2. Isolated automation workers by provider/platform.
-3. Provider abstraction for AI model routing.
-4. Explicit tenant boundary and per-run auth scopes.
+The current architecture is single-process. Planned evolution if usage grows beyond demo scale:
 
-## 9) Scalability tiers (today / 100 users / 10,000 users)
+- Queue-backed orchestration workers (e.g., BullMQ) when concurrent runs > 25 or p95 SSE latency > 2.5s.
+- Isolated automation workers per provider/platform.
+- Event-bus architecture (e.g., Kafka/NATS) when concurrent runs > 400.
+- SSE reconnection via checkpoint storage (e.g., Redis sorted sets with `Last-Event-ID` replay).
 
-| Tier | Orchestration runtime | Streaming | Persistence | Automation |
-|---|---|---|---|---|
-| Today (hackathon) | Single Next.js runtime with in-process orchestration | Direct SSE from API route | Supabase shared tables | Single sidecar process |
-| ~100 active users | Queue-backed orchestration workers | SSE backed by run-state checkpoints | Indexed run queries + export batching | Sidecar process pool |
-| ~10,000 active users | Distributed worker fleet + job scheduler | Event bus + resumable stream gateway | Partitioned storage + retention policies | Provider-specific automation workers |
-
-Concrete technology path:
-
-- ~100 users: BullMQ (Redis) for orchestration queue + worker isolation.
-- ~10,000 users: Kafka or NATS for event fanout + stream gateway replay.
-- Storage evolution: Supabase/Postgres partitioning by `created_at` month + retention/archive job.
-
-Migration triggers:
-
-- Move to queue-backed workers when concurrent runs > 25 **or** p95 SSE latency > 2.5s.
-- Move to event-bus architecture when concurrent runs > 400 **or** queue wait time > 60s.
-
-### SSE resumability (100-user tier)
-
-At the 100-user tier, SSE reconnection is handled via Redis-backed event checkpoints:
-
-1. Each emitted SSE event includes a `seq` field (monotonic per run).
-2. Events are stored in a Redis sorted set (`sse:run:{runId}`, score = `seq`, TTL = 2h).
-3. On reconnection, the client sends `Last-Event-ID: {runId}:{seq}`, and the API replays missed events from Redis before resuming live emission.
-4. On `run_complete`, the sorted set is garbage-collected after a 10-minute grace period.
-
-This adds zero latency to the happy path (Redis `ZADD` is fire-and-forget) and requires no client-side changes beyond the native `EventSource` `Last-Event-ID` behavior. Full design details in [masterPlan.md](../masterPlan.md#102-sse-resumability-design-100-user-tier).
+Design details for these future tiers are in [masterPlan.md](../masterPlan.md#102-sse-resumability-design-100-user-tier).
