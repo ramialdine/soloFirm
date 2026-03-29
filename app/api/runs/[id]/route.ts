@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getLocalRunById } from "@/lib/runsStore";
 import { getServiceSupabase } from "@/lib/supabase";
 
 function isAuthorized(req: NextRequest): boolean {
@@ -11,13 +12,13 @@ function isAuthorized(req: NextRequest): boolean {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = params;
+  const { id } = await params;
   if (!id?.trim()) {
     return NextResponse.json({ error: "Run id is required" }, { status: 400 });
   }
@@ -31,11 +32,19 @@ export async function GET(
       .single();
 
     if (error || !data) {
-      return NextResponse.json({ error: "Run not found" }, { status: 404 });
+      const fallback = await getLocalRunById(id);
+      if (!fallback) {
+        return NextResponse.json({ error: "Run not found" }, { status: 404 });
+      }
+      return NextResponse.json({ run: fallback });
     }
 
     return NextResponse.json({ run: data });
   } catch (err) {
+    const fallback = await getLocalRunById(id);
+    if (fallback) {
+      return NextResponse.json({ run: fallback });
+    }
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to fetch run" },
       { status: 500 }

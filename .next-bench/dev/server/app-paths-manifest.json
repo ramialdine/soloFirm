@@ -1,4 +1,10 @@
 {
+  "/api/automation/health/route": "app/api/automation/health/route.js",
+  "/api/automation/sessions/[id]/events/route": "app/api/automation/sessions/[id]/events/route.js",
+  "/api/automation/sessions/[id]/resume/route": "app/api/automation/sessions/[id]/resume/route.js",
   "/api/automation/sessions/route": "app/api/automation/sessions/route.js",
-  "/api/orchestrate/route": "app/api/orchestrate/route.js"
+  "/api/finalize/route": "app/api/finalize/route.js",
+  "/api/orchestrate/route": "app/api/orchestrate/route.js",
+  "/api/qa/route": "app/api/qa/route.js",
+  "/api/runs/[id]/route": "app/api/runs/[id]/route.js"
 }

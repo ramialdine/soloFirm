@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { getLocalRunById, upsertLocalRun } from "@/lib/runsStore";
 import { getServiceSupabase } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
@@ -14,12 +15,21 @@ export async function POST(req: NextRequest) {
 
     try {
       const sb = getServiceSupabase();
-      await sb
+      const { error } = await sb
         .from("runs")
         .update({ presentation })
         .eq("id", runId);
+      if (error) {
+        const existing = await getLocalRunById(runId);
+        if (existing) {
+          await upsertLocalRun({ ...existing, presentation });
+        }
+      }
     } catch {
-      // best-effort — Supabase may not be configured
+      const existing = await getLocalRunById(runId);
+      if (existing) {
+        await upsertLocalRun({ ...existing, presentation });
+      }
     }
 
     return new Response(JSON.stringify({ ok: true }), {

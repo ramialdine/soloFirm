@@ -1,0 +1,7 @@
+{
+  "sessionId": "9d8d380f-57a6-4d6a-83bc-b2080d89201f",
+  "resumeAttempt": {
+    "status": 409,
+    "body": "{\"error\":\"Session is not paused\"}"
+  }
+}

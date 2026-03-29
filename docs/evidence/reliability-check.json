@@ -1,0 +1,10 @@
+{
+  "health": {
+    "status": 200,
+    "body": "{\"ok\":true}"
+  },
+  "controlledFailure": {
+    "status": 400,
+    "body": "{\"error\":\"businessName is required\"}"
+  }
+}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { listLocalRuns } from "@/lib/runsStore";
 import { getServiceSupabase } from "@/lib/supabase";
 
 type ExportFormat = "json" | "csv";
@@ -41,11 +42,7 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    const rows = data ?? [];
+    const rows = error ? await listLocalRuns(limit) : data ?? [];
 
     if (format === "csv") {
       const headers = [
@@ -95,9 +92,54 @@ export async function GET(req: NextRequest) {
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (err) {
+    const rows = await listLocalRuns(limit);
+
+    if (format === "csv") {
+      const headers = [
+        "id",
+        "domain",
+        "task",
+        "status",
+        "created_at",
+        "completed_at",
+        "final_output",
+        "presentation",
+      ];
+
+      const csv = [
+        headers.join(","),
+        ...rows.map((row) =>
+          [
+            row.id,
+            row.domain,
+            row.task,
+            row.status,
+            row.created_at,
+            row.completed_at,
+            row.final_output,
+            row.presentation,
+          ]
+            .map(toCsvValue)
+            .join(",")
+        ),
+      ].join("\n");
+
+      return new NextResponse(csv, {
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="solofirm-runs-${new Date().toISOString().slice(0, 10)}.csv"`,
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to export runs" },
-      { status: 500 }
+      {
+        exportedAt: new Date().toISOString(),
+        count: rows.length,
+        runs: rows,
+      },
+      { headers: { "Cache-Control": "no-store" } }
     );
   }
 }

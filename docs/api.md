@@ -114,6 +114,10 @@ Response:
 
 - `{ run: { id, domain, task, status, agent_outputs, final_output, presentation, created_at, completed_at } }`
 
+Notes:
+
+- If Supabase is unavailable, endpoint falls back to local run storage (`data/runs-local.json`).
+
 Implementation: [app/api/runs/[id]/route.ts](../app/api/runs/[id]/route.ts)
 
 ### GET /api/runs/export
@@ -130,7 +134,54 @@ Response:
 - JSON mode: `{ exportedAt, count, runs[] }`
 - CSV mode: downloadable CSV file
 
+Notes:
+
+- If Supabase export fails, endpoint falls back to local run storage export.
+
 Implementation: [app/api/runs/export/route.ts](../app/api/runs/export/route.ts)
+
+### GET /api/webhooks/run-complete
+
+Purpose: Publish the `run_complete` webhook contract for external integrators.
+
+Response:
+
+- JSON schema for event payload and signing headers.
+
+Implementation: [app/api/webhooks/run-complete/route.ts](../app/api/webhooks/run-complete/route.ts)
+
+## Outbound webhook delivery
+
+SoloFirm emits outbound webhook notifications whenever a run reaches `run_complete`.
+
+Configuration:
+
+- `RUN_COMPLETE_WEBHOOK_URLS`: comma-separated destination URLs.
+- `WEBHOOK_SIGNING_SECRET`: optional signing key.
+
+Headers:
+
+- `x-solofirm-event: run_complete`
+- `x-solofirm-signature: <hmac_sha256_hex>` (only when signing secret is set)
+
+Payload:
+
+```json
+{
+	"event": "run_complete",
+	"timestamp": "2026-03-29T00:00:00.000Z",
+	"data": {
+		"id": "uuid",
+		"status": "complete",
+		"createdAt": "ISO-8601",
+		"completedAt": "ISO-8601",
+		"businessName": "Acme Studio",
+		"roadmapSteps": 14
+	}
+}
+```
+
+Delivery implementation: [lib/webhooks.ts](../lib/webhooks.ts)
 
 ### GET /api/automation/health
 

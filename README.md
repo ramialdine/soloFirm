@@ -37,6 +37,8 @@ Optional but recommended for automation features:
 - `AUTOMATION_SERVER_URL`
 - `AUTOMATION_SECRET`
 - `RUNS_API_KEY` (optional bearer auth for `/api/runs/*` endpoints)
+- `RUN_COMPLETE_WEBHOOK_URLS` (optional outbound `run_complete` integrations)
+- `WEBHOOK_SIGNING_SECRET` (optional HMAC signing secret for outbound webhooks)
 - Google OAuth credentials (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_SECRET`)
 
 ### 3) Run modes
@@ -50,13 +52,13 @@ npm run dev
 - Full stack (web + automation sidecar):
 
 ```bash
-npm run dev full
+npm run dev:full
 ```
 
 - Test mode (isolated web + mock automation):
 
 ```bash
-npm run dev test
+npm run dev:test
 ```
 
 ## Scripts
@@ -95,6 +97,7 @@ Primary app routes:
 - `POST /api/waitlist`
 - `GET /api/runs/:id`
 - `GET /api/runs/export` (`?format=json|csv&limit=50`)
+- `GET /api/webhooks/run-complete`
 - `GET /api/automation/health`
 - `POST /api/automation/sessions`
 - `POST /api/accounts/google-business`
@@ -125,7 +128,7 @@ Kill port listeners and restart:
 lsof -tiTCP -sTCP:LISTEN | xargs kill -15
 ```
 
-Then rerun `npm run dev full`.
+Then rerun `npm run dev:full`.
 
 ### Agents seem mocked instead of real
 

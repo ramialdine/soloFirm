@@ -1,32 +1,32 @@
 [
   {
-    "runId": "f9f8df6e-5177-477c-9372-2d191b46c7fc",
+    "runId": "d9b34965-3355-4d0d-aaa4-5e8fa1982371",
     "businessIdea": "Mobile car detailing service for busy professionals in Providence",
-    "createdAt": "2026-03-29T17:51:58.582Z",
-    "completedAt": "2026-03-29T17:51:58.582Z",
+    "createdAt": "2026-03-29T18:16:32.867Z",
+    "completedAt": "2026-03-29T18:16:32.868Z",
     "tlrMin": "0.00",
-    "stepsGenerated": 3,
-    "specificPct": 100,
+    "stepsGenerated": 13,
+    "specificPct": 92,
     "automationStarted": true
   },
   {
-    "runId": "a5fd1012-03fd-4a6d-8a54-ba1d0282eccd",
+    "runId": "f7143135-72b1-4ee9-9556-df16e12adf4c",
     "businessIdea": "Boutique bookkeeping studio for freelancers and contractors",
-    "createdAt": "2026-03-29T17:51:58.699Z",
-    "completedAt": "2026-03-29T17:51:58.699Z",
+    "createdAt": "2026-03-29T18:16:33.010Z",
+    "completedAt": "2026-03-29T18:16:33.010Z",
     "tlrMin": "0.00",
-    "stepsGenerated": 3,
-    "specificPct": 100,
+    "stepsGenerated": 13,
+    "specificPct": 92,
     "automationStarted": true
   },
   {
-    "runId": "71a8d597-bb23-4be1-b341-59a7e7a8a52a",
+    "runId": "d67e71c1-2ef7-47be-b233-7dda0c895d24",
     "businessIdea": "At-home personal training and nutrition coaching business",
-    "createdAt": "2026-03-29T17:51:58.781Z",
-    "completedAt": "2026-03-29T17:51:58.781Z",
+    "createdAt": "2026-03-29T18:16:33.077Z",
+    "completedAt": "2026-03-29T18:16:33.077Z",
     "tlrMin": "0.00",
-    "stepsGenerated": 3,
-    "specificPct": 100,
+    "stepsGenerated": 13,
+    "specificPct": 92,
     "automationStarted": true
   }
 ]

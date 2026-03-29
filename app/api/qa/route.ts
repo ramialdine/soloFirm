@@ -110,19 +110,21 @@ export async function POST(req: NextRequest) {
       }
 
       if (round === 1) {
+        const idea = intake.businessIdea;
+        const location = intake.location;
         return Response.json({
           _meta: { source: "test", mode: "ai_test_mode" },
           questions: [
             {
-              question: "Which business name direction do you prefer?",
+              question: `For your ${idea}, which customer segment in ${location} should you target first?`,
               options: ["Professional and trust-based", "Modern and bold", "Friendly and local"],
             },
             {
-              question: "How should you deliver your core service first?",
+              question: `How should your ${idea} deliver the first paid engagement?`,
               options: ["Hands-on local delivery", "Fully online workflow", "Hybrid model"],
             },
             {
-              question: "Which customer acquisition channel should lead launch?",
+              question: `Which acquisition channel should lead launch for your ${idea} in ${location}?`,
               options: ["Direct outreach", "Social content", "Referral partnerships"],
             },
           ],

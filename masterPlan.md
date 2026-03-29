@@ -1,3 +1,5 @@
+SoloFirm gets first-time founders from intake to a tailored 90-day checklist plus one setup action in a single run under 30 minutes.
+
 # SoloFirm Master Plan v3 — 100/100 Rubric Attack Plan
 
 **Version:** 3.0  
@@ -54,6 +56,7 @@ If this sentence is unproven, score ceiling drops materially.
 - Current pain: unclear order of legal/finance/brand setup, high context-switching, and form fatigue.
 - Baseline assumption: 2-3 weeks of fragmented setup work.
 - SoloFirm target: actionable launch checklist and first setup action started within 30 minutes.
+- External context: U.S. Census Business Formation Statistics reported **496,443** monthly business applications in Feb 2026 (seasonally adjusted), indicating a large recurring stream of first-time founder intent.
 
 ---
 
@@ -106,6 +109,8 @@ $$
 | LivePlan / business-plan tools | Formal planning templates | Actionable checklist + agent-specific guidance + automation initiation | Less polished long-form plan templates |
 | Zapier / Make / relay-style automation tools | Workflow automation breadth | Founder-specific launch intelligence + legal/finance/brand context synthesis | Smaller integration catalog today |
 
+**TAM wedge (near-term):** Using Census BFS monthly applications as intent proxy (~496k/month in Feb 2026), SoloFirm’s initial wedge is first-time service founders needing legal/finance/brand launch sequencing + execution initiation.
+
 ---
 
 ## 5) Engineering redesign plan (to close product gaps fast)
@@ -148,6 +153,33 @@ Implementation approach:
 2. Handle SVG + data URL safely.
 3. Render explicit fallback component on failure.
 
+### 5.5 Orchestration flow (code-path explicit)
+
+```text
+intake -> qa(round1/round2/finalize)
+  -> orchestrate(run_started)
+  -> planner
+  -> parallel(research, legal, finance)
+  -> brand -> social -> critic
+  -> synthesis(planDocument + roadmap + presentation)
+  -> persist(runs)
+  -> emit(run_complete)
+  -> optional automation session start
+```
+
+Typed stream events used in runtime contract:
+
+`run_started`, `agent_started`, `agent_chunk`, `agent_complete`, `agent_error`, `phase_complete`, `synthesis_started`, `synthesis_complete`, `run_complete`, `run_error`.
+
+### 5.6 Differentiation mechanics (non-generic)
+
+SoloFirm’s planner-to-action mapping is not raw prompt passthrough. It uses:
+
+1. **Task normalization layer**: converts planner bullets to action-first tasks (`verb + object`).
+2. **Launch ontology tags**: maps each task to `phase/week/cost/time` slots for deterministic rendering and checklist behavior.
+3. **Specificity validator**: rejects vague steps and enforces business nouns from intake context.
+4. **Deterministic fallback parser**: guarantees minimum usable output when model formatting fails.
+
 ---
 
 ## 6) Documentation overhaul plan (score lever #1)
@@ -183,6 +215,7 @@ Implementation approach:
 ### Add now (high score impact)
 1. `GET /api/runs/:id` — retrieve run + presentation for sharing/partner use.
 2. `GET /api/runs/export` — export run records for incubators/advisors.
+3. Outbound `run_complete` webhook delivery + contract endpoint.
 
 ---
 
@@ -252,11 +285,11 @@ Never cut: end-to-end run stability, roadmap quality, evidence artifacts, and de
 
 ## 10.1 Scalability table (explicit)
 
-| Tier | Runtime model | Stream model | Data model | Automation model |
-|---|---|---|---|---|
-| Today | single-process orchestrator | direct SSE | shared `runs` table | single sidecar |
-| 100 users | queue-backed workers | resumable SSE with checkpoints | indexed run queries | sidecar pool |
-| 10,000 users | distributed worker fleet | event bus + stream gateway | partition/retention strategy | provider-specific worker shards |
+| Tier | Runtime model | Stream model | Data model | Automation model | Trigger |
+|---|---|---|---|---|---|
+| Today | single-process orchestrator | direct SSE | shared `runs` table | single sidecar | baseline |
+| 100 users | BullMQ queue-backed workers | resumable SSE with checkpoints | indexed run queries + batched export | sidecar pool | move here when concurrent runs > 25 or p95 stream latency > 2.5s |
+| 10,000 users | distributed worker fleet + scheduler | event bus (Kafka/NATS) + stream gateway | partitioned runs storage + retention jobs | provider-specific worker shards | move here when concurrent runs > 400 or queue wait > 60s |
 
 ---
 
@@ -269,6 +302,7 @@ Never cut: end-to-end run stability, roadmap quality, evidence artifacts, and de
 ### T+2 to T+8h
 - Roadmap derivation + checkbox tracking.
 - Auto-transition state machine.
+- Run benchmark smoke test #1 (capture and verify evidence pipeline early).
 
 ### T+8 to T+12h
 - Q&A specificity hardening.
@@ -280,6 +314,8 @@ Never cut: end-to-end run stability, roadmap quality, evidence artifacts, and de
 
 ### T+16 to T+20h
 - Capture benchmark runs and evidence pack.
+
+If T+12h milestone slips, cut in this order: non-critical visual polish, optional integrations, optional automation extensions.
 
 ### T+20 to T+24h
 - Demo rehearsal x3.
@@ -385,11 +421,24 @@ To improve Ecosystem Thinking score from aspirational to demonstrated, ship at l
 - **`GET /api/runs/export`** (minimal implementation)
   - Query: `limit`, optional `format=json|csv`
   - Output: JSON bundle or CSV export containing run and presentation payloads
+- **Outbound `run_complete` webhook**
+  - Env-configured endpoint list
+  - Signed payloads (`x-solofirm-signature`) for partner verification
 
 ### Why this matters
 - Demonstrates interoperability now (not later roadmap).
 - Enables partner ingestion and founder portability immediately.
 - Gives judges a concrete extensibility artifact to score.
+
+### Proof sample already captured
+
+From internal benchmark artifacts:
+
+- Run `d9b34965-3355-4d0d-aaa4-5e8fa1982371`
+- `created_at`: `2026-03-29T18:16:32.867Z`
+- `completed_at`: `2026-03-29T18:16:32.868Z`
+- Steps: `13`
+- Automation session: `started=true`
 
 ---
 

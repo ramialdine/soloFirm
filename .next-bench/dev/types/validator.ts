@@ -290,6 +290,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../../app/api/webhooks/run-complete/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/webhooks/run-complete">> = Specific
+  const handler = {} as typeof import("../../../app/api/webhooks/run-complete/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 
 
 

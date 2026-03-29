@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { orchestrate } from "@/lib/orchestrator";
+import { upsertLocalRun } from "@/lib/runsStore";
 import { getServiceSupabase } from "@/lib/supabase";
+import { deliverRunCompleteWebhook } from "@/lib/webhooks";
 import type { SSEEvent } from "@/types/agents";
 
 export const maxDuration = 300;
@@ -59,7 +61,24 @@ export async function POST(req: NextRequest) {
           // Persist to Supabase (best-effort) BEFORE telling the client we're done
           try {
             const sb = getServiceSupabase();
-            await sb.from("runs").upsert({
+            const payload = {
+              id: run.id,
+              domain: run.domain,
+              task: run.task,
+              status: run.status,
+              agent_outputs: run.agent_outputs,
+              final_output: run.final_output,
+              presentation: run.presentation,
+              created_at: run.created_at,
+              completed_at: run.completed_at,
+            };
+
+            const { error } = await sb.from("runs").upsert(payload);
+            if (error) {
+              await upsertLocalRun(payload);
+            }
+          } catch {
+            await upsertLocalRun({
               id: run.id,
               domain: run.domain,
               task: run.task,
@@ -70,6 +89,10 @@ export async function POST(req: NextRequest) {
               created_at: run.created_at,
               completed_at: run.completed_at,
             });
+          }
+
+          try {
+            await deliverRunCompleteWebhook(run);
           } catch {
             // best-effort
           }

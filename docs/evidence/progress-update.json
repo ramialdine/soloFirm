@@ -1,0 +1,14 @@
+{
+  "runId": "d9b34965-3355-4d0d-aaa4-5e8fa1982371",
+  "finalizeStatus": 200,
+  "before": {
+    "total": 13,
+    "complete": 0,
+    "pct": 0
+  },
+  "after": {
+    "total": 13,
+    "complete": 2,
+    "pct": 15
+  }
+}

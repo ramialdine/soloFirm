@@ -1,0 +1,29 @@
+{
+  "specificityPct": 100,
+  "questions": [
+    {
+      "question": "For your Mobile car detailing service for busy professionals in Providence, which customer segment in Rhode Island should you target first?",
+      "options": [
+        "Professional and trust-based",
+        "Modern and bold",
+        "Friendly and local"
+      ]
+    },
+    {
+      "question": "How should your Mobile car detailing service for busy professionals in Providence deliver the first paid engagement?",
+      "options": [
+        "Hands-on local delivery",
+        "Fully online workflow",
+        "Hybrid model"
+      ]
+    },
+    {
+      "question": "Which acquisition channel should lead launch for your Mobile car detailing service for busy professionals in Providence in Rhode Island?",
+      "options": [
+        "Direct outreach",
+        "Social content",
+        "Referral partnerships"
+      ]
+    }
+  ]
+}

@@ -13,14 +13,14 @@ npm install
 3. Start full stack:
 
 ```bash
-npm run dev full
+npm run dev:full
 ```
 
 ## 2) Run modes
 
 - Web only: `npm run dev`
-- Full stack: `npm run dev full`
-- Test stack: `npm run dev test`
+- Full stack: `npm run dev:full`
+- Test stack: `npm run dev:test`
 
 ## 3) Common checks
 
@@ -96,7 +96,7 @@ Do **not** cut:
 
 ## 8) Internal benchmark protocol (same-day)
 
-Run 3 internal sessions and record in [docs/benchmark-results-template.md](benchmark-results-template.md):
+Run 1 smoke benchmark by T+8h, then complete 2 more by T+20h and record all 3 in [docs/benchmark-results-template.md](benchmark-results-template.md):
 
 1. Start timestamp
 2. Completion timestamp

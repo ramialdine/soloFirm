@@ -88,6 +88,108 @@
 			"type": "shell",
 			"command": "cd /Users/rami/Downloads/soloFirm && BENCH_BASE_URL=http://localhost:3004 BENCH_OUTPUT_FILE=docs/benchmark-results.json node scripts/run-benchmarks.mjs",
 			"isBackground": false
+		},
+		{
+			"label": "benchmark-refresh",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && BENCH_BASE_URL=http://localhost:3004 BENCH_OUTPUT_FILE=docs/benchmark-results.json node scripts/run-benchmarks.mjs",
+			"isBackground": false
+		},
+		{
+			"label": "bench-server",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && AI_TEST_MODE=true TEST_MODE=true NEXT_DIST_DIR=.next-bench npm run dev:web -- -p 3004",
+			"isBackground": true
+		},
+		{
+			"label": "benchmark-refresh",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && BENCH_BASE_URL=http://localhost:3004 BENCH_OUTPUT_FILE=docs/benchmark-results.json node scripts/run-benchmarks.mjs",
+			"isBackground": false
+		},
+		{
+			"label": "benchmark-refresh-2",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && BENCH_BASE_URL=http://localhost:3004 BENCH_OUTPUT_FILE=docs/benchmark-results.json node scripts/run-benchmarks.mjs",
+			"isBackground": false
+		},
+		{
+			"label": "capture-evidence",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && BENCH_BASE_URL=http://localhost:3004 node scripts/capture-evidence.mjs",
+			"isBackground": false
+		},
+		{
+			"label": "capture-qa-evidence",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && BENCH_BASE_URL=http://localhost:3004 node scripts/capture-qa-evidence.mjs",
+			"isBackground": false
+		},
+		{
+			"label": "capture-qa-evidence-2",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && BENCH_BASE_URL=http://localhost:3004 node scripts/capture-qa-evidence.mjs",
+			"isBackground": false
+		},
+		{
+			"label": "git-status-short",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && git --no-pager status --short",
+			"isBackground": false
+		},
+		{
+			"label": "check-run-endpoint",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && node -e \"fetch('http://localhost:3004/api/runs/401e2d3e-4f47-4e20-bdf5-96d566a4568d').then(async r=>{console.log('status',r.status);console.log(await r.text())}).catch(e=>{console.error(e);process.exit(1)})\"",
+			"isBackground": false
+		},
+		{
+			"label": "capture-automation-evidence",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && BENCH_BASE_URL=http://localhost:3004 node scripts/capture-automation-evidence.mjs",
+			"isBackground": false
+		},
+		{
+			"label": "benchmark-refresh-3",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && BENCH_BASE_URL=http://localhost:3004 BENCH_OUTPUT_FILE=docs/benchmark-results.json node scripts/run-benchmarks.mjs",
+			"isBackground": false
+		},
+		{
+			"label": "check-run-endpoint-2",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && node -e \"fetch('http://localhost:3004/api/runs/d9b34965-3355-4d0d-aaa4-5e8fa1982371').then(async r=>{console.log('status',r.status);console.log(await r.text())}).catch(e=>{console.error(e);process.exit(1)})\"",
+			"isBackground": false
+		},
+		{
+			"label": "capture-finalize-evidence",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && BENCH_BASE_URL=http://localhost:3004 node scripts/capture-finalize-evidence.mjs",
+			"isBackground": false
+		},
+		{
+			"label": "git-status-short-2",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && git --no-pager status --short",
+			"isBackground": false
+		},
+		{
+			"label": "git-status-short-3",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && git --no-pager status --short",
+			"isBackground": false
+		},
+		{
+			"label": "git-status-short-4",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && git --no-pager status --short",
+			"isBackground": false
+		},
+		{
+			"label": "capture-progress-evidence",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && BENCH_BASE_URL=http://localhost:3004 node scripts/capture-progress-evidence.mjs",
+			"isBackground": false
 		}
 	]
 }

@@ -124,3 +124,14 @@ Core `runs` columns used by runtime:
 | Today (hackathon) | Single Next.js runtime with in-process orchestration | Direct SSE from API route | Supabase shared tables | Single sidecar process |
 | ~100 active users | Queue-backed orchestration workers | SSE backed by run-state checkpoints | Indexed run queries + export batching | Sidecar process pool |
 | ~10,000 active users | Distributed worker fleet + job scheduler | Event bus + resumable stream gateway | Partitioned storage + retention policies | Provider-specific automation workers |
+
+Concrete technology path:
+
+- ~100 users: BullMQ (Redis) for orchestration queue + worker isolation.
+- ~10,000 users: Kafka or NATS for event fanout + stream gateway replay.
+- Storage evolution: Supabase/Postgres partitioning by `created_at` month + retention/archive job.
+
+Migration triggers:
+
+- Move to queue-backed workers when concurrent runs > 25 **or** p95 SSE latency > 2.5s.
+- Move to event-bus architecture when concurrent runs > 400 **or** queue wait time > 60s.
