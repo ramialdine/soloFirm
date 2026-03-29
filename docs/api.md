@@ -15,19 +15,19 @@
 	- If `RUNS_API_KEY` is set, callers must pass `Authorization: Bearer <RUNS_API_KEY>`.
 	- If unset, endpoints are open for local/dev usage.
 
-## Developer onboarding (quick start for partners)
+## Developer onboarding
 
-To integrate with SoloFirm as a third-party developer (e.g., incubator dashboard, advisor tool):
+To use the run-read/export endpoints:
 
-1. **Obtain an API key**: request `RUNS_API_KEY` from the SoloFirm admin.
-2. **Set the auth header**: include `Authorization: Bearer <your-key>` on all `/api/runs/*` requests.
-3. **Make your first call**:
+1. **Set `RUNS_API_KEY`** in your `.env.local`. If unset, endpoints are open (no auth required).
+2. **Include the auth header** on `/api/runs/*` requests: `Authorization: Bearer <your-key>`.
+3. **Example call**:
    ```bash
    curl -H "Authorization: Bearer YOUR_KEY" \
-     https://your-solofirm-host/api/runs/export?limit=5&format=json
+     http://localhost:3000/api/runs/export?limit=5&format=json
    ```
-4. **Parse the response**: each run object includes `presentation.roadmap` (step-level task data), `presentation.businessName`, `agent_outputs` (per-agent markdown), and timing fields for TLR computation.
-5. **Set up webhooks** (optional): configure `RUN_COMPLETE_WEBHOOK_URLS` to receive real-time notifications when runs complete. Verify payloads with `x-solofirm-signature` HMAC (see Outbound webhook delivery section below).
+4. **Response shape**: each run object includes `presentation.roadmap` (step-level task data), `presentation.businessName`, `agent_outputs` (per-agent markdown), and timing fields.
+5. **Webhooks** (optional): set `RUN_COMPLETE_WEBHOOK_URLS` in env to receive POST notifications on run completion. Verify payloads with `x-solofirm-signature` HMAC (see Outbound webhook delivery section below).
 
 ## Versioning and rate limits
 
