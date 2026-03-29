@@ -46,6 +46,7 @@ export default async function ResultsLayout({
         businessName={businessName}
         status={status}
         createdAt={createdAt}
+        roadmapSource={run?.presentation?.roadmapSource ?? null}
       />
 
       {/* Sub-page navigation tabs */}
