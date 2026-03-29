@@ -1,0 +1,93 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "run-benchmarks",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/run-benchmarks.mjs"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "benchmark-capture",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/run-benchmarks.mjs"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "diag-node",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"console.log('ok-diag')"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "diag-node-quoted",
+			"type": "shell",
+			"command": "node -e \"console.log('ok-diag')\"",
+			"isBackground": false
+		},
+		{
+			"label": "benchmark-capture-quoted",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && node scripts/run-benchmarks.mjs",
+			"isBackground": false
+		},
+		{
+			"label": "diag-fetch-health",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && node -e \"fetch('http://localhost:3003/api/automation/health').then(r=>r.text()).then(t=>console.log(t)).catch(e=>{console.error(e);process.exit(1)})\"",
+			"isBackground": false
+		},
+		{
+			"label": "diag-one-run",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && node -e \"(async()=>{const payload={businessIdea:'Mobile car detailing service for busy professionals in Providence',location:'Rhode Island',budgetRange:'$5,000 - $25,000',entityPreference:'LLC',teamSize:'Solo'};const c=new AbortController();setTimeout(()=>c.abort(),240000);const res=await fetch('http://localhost:3003/api/orchestrate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload),signal:c.signal});console.log('status',res.status);if(!res.ok||!res.body){console.log(await res.text());return;}const reader=res.body.getReader();const dec=new TextDecoder();let buf='';let done=false;while(!done){const r=await reader.read();done=r.done;if(r.value){buf+=dec.decode(r.value,{stream:true});let lines=buf.split('\\n');buf=lines.pop()||'';for(const line of lines){if(line.startsWith('data: ')){try{const e=JSON.parse(line.slice(6));if(e.type==='run_complete'){console.log('RUN',e.run?.id,e.run?.created_at,e.run?.completed_at,(e.run?.presentation?.roadmap||[]).length);return;}}catch{}}}}}console.log('no run_complete');})().catch(e=>{console.error('ERR',e?.name,e?.message);process.exit(1);})\"",
+			"isBackground": false
+		},
+		{
+			"label": "benchmark-capture-testmode",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && AI_TEST_MODE=true TEST_MODE=true node scripts/run-benchmarks.mjs",
+			"isBackground": false
+		},
+		{
+			"label": "bench-web-3004",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && AI_TEST_MODE=true TEST_MODE=true NEXT_DIST_DIR=.next-bench next dev -p 3004",
+			"isBackground": true
+		},
+		{
+			"label": "bench-web-3004",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && AI_TEST_MODE=true TEST_MODE=true NEXT_DIST_DIR=.next-bench npm run dev:web -- -p 3004",
+			"isBackground": true
+		},
+		{
+			"label": "bench-web-3004-npm",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && AI_TEST_MODE=true TEST_MODE=true NEXT_DIST_DIR=.next-bench npm run dev:web -- -p 3004",
+			"isBackground": true
+		},
+		{
+			"label": "benchmark-run-3004",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && BENCH_BASE_URL=http://localhost:3004 node scripts/run-benchmarks.mjs",
+			"isBackground": false
+		},
+		{
+			"label": "benchmark-run-writefile",
+			"type": "shell",
+			"command": "cd /Users/rami/Downloads/soloFirm && BENCH_BASE_URL=http://localhost:3004 BENCH_OUTPUT_FILE=docs/benchmark-results.json node scripts/run-benchmarks.mjs",
+			"isBackground": false
+		}
+	]
+}

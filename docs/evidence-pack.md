@@ -19,11 +19,11 @@ Use this file as the final judge-facing validation list.
 
 ## C) Measurement proof
 
-- [ ] 3 benchmark run records captured
-- [ ] TLR computed for each run
-- [ ] Step specificity rate computed
+- [x] 3 benchmark run records captured
+- [x] TLR computed for each run
+- [x] Step specificity rate computed
 - [ ] QA specificity sample documented
-- [ ] [Benchmark results sheet](benchmark-results.md) is populated (no `pending` values)
+- [x] [Benchmark results sheet](benchmark-results.md) is populated (no `pending` values)
 
 ## D) Reliability proof
 

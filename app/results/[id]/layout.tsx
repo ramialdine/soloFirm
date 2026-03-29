@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { getRun } from "@/lib/get-run";
 import ResultsNav from "./results-nav";
+import ResultsLayoutHeader from "./results-layout-header";
 
 export default async function ResultsLayout({
   children,
@@ -13,12 +13,13 @@ export default async function ResultsLayout({
   const { id } = await params;
   const run = await getRun(id);
 
-  if (!run) {
-    notFound();
-  }
-
-  const businessName =
-    run.presentation?.businessName ?? run.domain ?? "Your Business";
+  // If Supabase doesn't have the run yet (e.g. race condition on first load),
+  // still render the shell — the child page will load data from sessionStorage.
+  const businessName = run
+    ? (run.presentation?.businessName ?? run.domain ?? "Your Business")
+    : null;
+  const status = run?.status ?? null;
+  const createdAt = run?.created_at ?? null;
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -39,30 +40,13 @@ export default async function ResultsLayout({
         </div>
       </nav>
 
-      {/* Status badge + date */}
-      <div className="mx-auto max-w-5xl px-6 pt-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-lg font-bold text-zinc-900">{businessName}</h1>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
-              run.status === "complete"
-                ? "bg-emerald-100 text-emerald-700"
-                : run.status === "partial"
-                  ? "bg-amber-100 text-amber-700"
-                  : "bg-red-100 text-red-700"
-            }`}
-          >
-            {run.status}
-          </span>
-          <span className="text-xs text-zinc-400">
-            {new Date(run.created_at).toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </span>
-        </div>
-      </div>
+      {/* Status badge + date — client component reads sessionStorage if server data unavailable */}
+      <ResultsLayoutHeader
+        runId={id}
+        businessName={businessName}
+        status={status}
+        createdAt={createdAt}
+      />
 
       {/* Sub-page navigation tabs */}
       <ResultsNav id={id} />

@@ -601,8 +601,15 @@ export default function AgentOrchestrator() {
                   setPresentation(event.run.presentation);
                 }
                 setPackagingReady(true);
-                // Orchestrate route already saved to Supabase — go directly to plan page
-                if (completedRunId) {
+                // Persist run in sessionStorage so result pages can render even if
+                // Supabase hasn't flushed yet (avoids 404 on navigation).
+                if (completedRunId && event.run) {
+                  try {
+                    sessionStorage.setItem(
+                      `run_${completedRunId}`,
+                      JSON.stringify(event.run)
+                    );
+                  } catch { /* storage full — non-fatal */ }
                   router.push(`/results/${completedRunId}/plan`);
                 } else {
                   setStep("packaging"); // fallback if no runId
