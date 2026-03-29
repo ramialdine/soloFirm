@@ -1,10 +1,26 @@
 {
   "run": {
-    "id": "8b64b060-5153-4dba-b125-c650e4cb66cf",
-    "createdAt": "2026-03-29T18:11:55.804Z",
-    "completedAt": "2026-03-29T18:11:55.805Z",
+    "id": "d9b34965-3355-4d0d-aaa4-5e8fa1982371",
+    "createdAt": "2026-03-29T18:16:32.867Z",
+    "completedAt": "2026-03-29T18:21:47.312Z",
     "status": "complete",
-    "roadmapSteps": 13
+    "roadmapSteps": 15
   },
-  "eventCount": 30
+  "eventCount": 47,
+  "agentTimings": {
+    "planner": { "startedAt": "2026-03-29T18:16:33.120Z", "completedAt": "2026-03-29T18:17:45.230Z", "durationSec": 72.1 },
+    "research": { "startedAt": "2026-03-29T18:17:45.500Z", "completedAt": "2026-03-29T18:18:52.100Z", "durationSec": 66.6 },
+    "legal": { "startedAt": "2026-03-29T18:17:45.500Z", "completedAt": "2026-03-29T18:19:01.800Z", "durationSec": 76.3 },
+    "finance": { "startedAt": "2026-03-29T18:17:45.500Z", "completedAt": "2026-03-29T18:18:48.900Z", "durationSec": 63.4 },
+    "brand": { "startedAt": "2026-03-29T18:19:02.100Z", "completedAt": "2026-03-29T18:19:58.400Z", "durationSec": 56.3 },
+    "social": { "startedAt": "2026-03-29T18:19:58.700Z", "completedAt": "2026-03-29T18:20:52.300Z", "durationSec": 53.6 },
+    "critic": { "startedAt": "2026-03-29T18:20:52.600Z", "completedAt": "2026-03-29T18:21:30.100Z", "durationSec": 37.5 }
+  },
+  "synthesisTimeSec": 17.2,
+  "specificityValidation": {
+    "stepsBeforeValidation": 17,
+    "stepsAfterValidation": 15,
+    "rejectedCount": 2,
+    "rejectedReasons": ["vague verb \"optimize\"", "no business-specific nouns from intake"]
+  }
 }

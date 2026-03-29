@@ -117,6 +117,8 @@ export interface RoadmapStep {
   cost?: string;        // e.g. "$300", "Free"
 }
 
+export type RoadmapSource = "test_mock" | "synthesis_json" | "deterministic_fallback";
+
 export interface Presentation {
   businessName: string;
   nameSuggestions?: string[];
@@ -124,6 +126,7 @@ export interface Presentation {
   selectedBusinessStructure?: string;
   location?: string; // founder's state/location from intake (used for PDF form filling & SoS links)
   teamSize?: string; // founder's team size from intake (used for PDF form filling)
+  roadmapSource?: RoadmapSource; // diagnostic: which code path produced the roadmap
   derivedFromPlanner?: boolean; // true when roadmap was extracted from planner output
   planDocument?: string; // composed full document from all 7 agents
   brandTheme: {

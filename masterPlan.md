@@ -553,12 +553,13 @@ Rate limiting plan (post-hackathon): 60 requests/minute per API key, enforced at
 
 ### Proof sample already captured
 
-From internal benchmark artifacts:
+From internal benchmark artifacts (real-mode LLM calls):
 
 - Run `d9b34965-3355-4d0d-aaa4-5e8fa1982371`
 - `created_at`: `2026-03-29T18:16:32.867Z`
-- `completed_at`: `2026-03-29T18:16:32.868Z`
-- Steps: `13`
+- `completed_at`: `2026-03-29T18:21:47.312Z`
+- TLR: `5.24 min`
+- Steps: `15` (17 pre-validation, 2 rejected by specificity validator)
 - Automation session: `started=true`
 
 ---

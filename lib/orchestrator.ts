@@ -662,6 +662,7 @@ async function synthesizePresentation(
 ): Promise<Presentation | null> {
   if (AI_TEST_MODE) {
     const mock: Presentation = {
+      roadmapSource: "test_mock",
       businessName: "SoloSpark",
       nameSuggestions: ["SoloSpark", "LaunchFoundry", "FounderLift", "PilotGrid", "Northline Studio"],
       tagline: "From idea to launch in one run",
@@ -772,6 +773,7 @@ async function synthesizePresentation(
     }
 
     if (parsed && parsed.businessName && parsed.agentSummaries) {
+      parsed.roadmapSource = "synthesis_json";
       // Run specificity validator on synthesized roadmap steps
       if (parsed.roadmap?.length) {
         const { valid, rejected } = validateAndFilterRoadmap(parsed.roadmap, intake);
@@ -807,6 +809,7 @@ async function synthesizePresentation(
 
   // Fallback: build a minimal presentation from raw outputs
   const fallback: Presentation = {
+    roadmapSource: "deterministic_fallback",
     businessName: "Your Business",
     nameSuggestions: [
       "Your Business Co.",
@@ -835,15 +838,8 @@ async function synthesizePresentation(
       headline: `${AGENT_META[id].deliverable} complete`,
       bullets: [AGENT_META[id].description],
     })),
-    // Use deterministic fallback parser output if available, otherwise static defaults
-    roadmap: fallbackSteps.length >= 6 ? fallbackSteps : [
-      { id: "choose-entity", title: "Choose Your Business Structure", week: "Week 1", phase: "Foundation", why: "Your liability protection and tax treatment depend on this decision.", prepared: "See your Legal Package for an entity comparison table.", action: "Review the Legal Agent's recommendation and decide on LLC vs S-Corp.", agentId: "legal", estimatedTime: "15 minutes", cost: "Free" },
-      { id: "register-entity", title: "Register Your Business", week: "Week 1", phase: "Foundation", why: "You can't open a bank account or get an EIN without this.", prepared: "Your Legal Package includes a draft Articles of Organization.", action: "File with your state's Secretary of State office.", agentId: "legal", estimatedTime: "30 minutes", cost: "Varies by state" },
-      { id: "apply-ein", title: "Apply for an EIN", week: "Week 1", phase: "Foundation", why: "Required for business banking, hiring, and tax filing.", prepared: "Your Financial Setup Guide has step-by-step EIN instructions.", action: "Apply online at irs.gov — instant approval.", actionUrl: "https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online", agentId: "finance", estimatedTime: "10 minutes", cost: "Free" },
-      { id: "open-bank", title: "Open a Business Bank Account", week: "Week 2", phase: "Foundation", why: "Separates personal and business finances from day one.", prepared: "Your Financial Setup Guide compares 5 banks with pricing.", action: "Pick a bank from the comparison table and apply online.", agentId: "finance", estimatedTime: "20 minutes", cost: "Free" },
-      { id: "setup-brand", title: "Finalize Brand Identity", week: "Week 3-4", phase: "Brand", why: "Consistent branding builds trust before you have customers.", prepared: "Your Brand Package has colors, fonts, logo concepts, and messaging.", action: "Hand the Brand Package to a designer or use Canva to build assets.", agentId: "brand", estimatedTime: "2-3 hours", cost: "Free-$200" },
-      { id: "launch-social", title: "Set Up Social Media Accounts", week: "Week 4-5", phase: "Marketing", why: "Your audience needs to find you before launch day.", prepared: "Your Social Media Kit has bios, content pillars, and a 30-day content calendar.", action: "Create business profiles on Instagram, Facebook, and LinkedIn using your brand colors and bio from the Social Media Kit.", agentId: "social", estimatedTime: "1 hour", cost: "Free" },
-    ],
+    // Always use deterministic parser output — never static hardcoded steps
+    roadmap: fallbackSteps,
   };
 
   emit({ type: "synthesis_complete", presentation: fallback, timestamp: now() });
