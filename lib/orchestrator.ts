@@ -750,57 +750,107 @@ async function synthesizePresentation(
 
   emit({ type: "synthesis_started", timestamp: now() });
 
-  try {
-    const openai = getOpenAI();
-    const response = await openai.chat.completions.create({
-      model: CHAT_MODEL,
-      messages: [
-        { role: "system", content: SYNTHESIS_PROMPT },
-        { role: "user", content: summaryInput },
-      ],
-      max_tokens: 6000,
-    });
+  // Attempt synthesis with one automatic retry on invalid JSON
+  const MAX_SYNTHESIS_ATTEMPTS = 2;
+  let lastRawResponse = "";
 
-    const raw = response.choices?.[0]?.message?.content ?? "";
-
-    // Parse JSON from response (try direct, then strip markdown)
-    let parsed: Presentation | null = null;
+  for (let attempt = 1; attempt <= MAX_SYNTHESIS_ATTEMPTS; attempt++) {
     try {
-      parsed = JSON.parse(raw);
-    } catch {
-      const match = raw.match(/\{[\s\S]*\}/);
-      if (match) parsed = JSON.parse(match[0]);
-    }
+      const openai = getOpenAI();
+      const retryHint = attempt > 1
+        ? "\n\nPREVIOUS ATTEMPT RETURNED INVALID JSON. Return ONLY a valid JSON object — no markdown fences, no commentary."
+        : "";
+      const response = await openai.chat.completions.create({
+        model: CHAT_MODEL,
+        messages: [
+          { role: "system", content: SYNTHESIS_PROMPT + retryHint },
+          { role: "user", content: summaryInput },
+        ],
+        max_tokens: 6000,
+      });
 
-    if (parsed && parsed.businessName && parsed.agentSummaries) {
+      const raw = response.choices?.[0]?.message?.content ?? "";
+      lastRawResponse = raw;
+
+      // Parse JSON from response (try direct, then strip markdown)
+      let parsed: Presentation | null = null;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        const match = raw.match(/\{[\s\S]*\}/);
+        if (match) {
+          try { parsed = JSON.parse(match[0]); } catch { /* will retry or fallback */ }
+        }
+      }
+
+      if (!parsed || !parsed.businessName || !parsed.agentSummaries) {
+        if (attempt < MAX_SYNTHESIS_ATTEMPTS) {
+          console.log(`Synthesis attempt ${attempt} returned invalid JSON — retrying`);
+          continue;
+        }
+        console.error(`Synthesis failed after ${MAX_SYNTHESIS_ATTEMPTS} attempts — raw response length: ${raw.length}`);
+        break;
+      }
+
+      // Success — tag and validate
+      if (parsed && parsed.businessName && parsed.agentSummaries) {
       parsed.roadmapSource = "synthesis_json";
-      // Run specificity validator on synthesized roadmap steps
+
+      // Validate and filter synthesized roadmap steps
       if (parsed.roadmap?.length) {
         const { valid, rejected } = validateAndFilterRoadmap(parsed.roadmap, intake);
         if (rejected > 0) {
           console.log(`Specificity validator: kept ${valid.length}, rejected ${rejected} vague steps`);
         }
         parsed.roadmap = valid;
+      }
 
-        // If too many steps were rejected, supplement with fallback-parsed tasks
-        if (valid.length < 8) {
-          const fallbackSteps = parseFallbackRoadmap(outputs, intake);
-          const existingIds = new Set(valid.map((s) => s.id));
-          for (const fs of fallbackSteps) {
-            if (!existingIds.has(fs.id) && valid.length < 15) {
-              valid.push(fs);
-              existingIds.add(fs.id);
-            }
+      // If roadmap is empty/missing or too few steps survived validation,
+      // rebuild from agent outputs via deterministic parser
+      if (!parsed.roadmap?.length || parsed.roadmap.length < 8) {
+        console.log(`Roadmap has ${parsed.roadmap?.length ?? 0} steps after validation — supplementing from agent outputs`);
+        const agentSteps = parseFallbackRoadmap(outputs, intake);
+        const existingIds = new Set((parsed.roadmap ?? []).map((s) => s.id));
+        const merged = [...(parsed.roadmap ?? [])];
+        for (const fs of agentSteps) {
+          if (!existingIds.has(fs.id) && merged.length < 20) {
+            merged.push(fs);
+            existingIds.add(fs.id);
           }
-          parsed.roadmap = valid;
+        }
+        parsed.roadmap = merged;
+      }
+
+      // Final acceptance check: sourceAgent diversity (at least 3 distinct agents)
+      const sourceAgents = new Set<string>(
+        parsed.roadmap.map((s) => s.sourceAgent ?? s.agentId ?? "").filter(Boolean)
+      );
+      if (sourceAgents.size < 3 && parsed.roadmap.length > 0) {
+        console.log(`Low sourceAgent diversity (${sourceAgents.size}) — supplementing from agent outputs`);
+        const agentSteps = parseFallbackRoadmap(outputs, intake);
+        const existingIds = new Set(parsed.roadmap.map((s) => s.id));
+        for (const fs of agentSteps) {
+          const agent = fs.sourceAgent ?? "";
+          if (!existingIds.has(fs.id) && agent && !sourceAgents.has(agent)) {
+            parsed.roadmap.push(fs);
+            existingIds.add(fs.id);
+            sourceAgents.add(agent);
+          }
         }
       }
 
       emit({ type: "synthesis_complete", presentation: parsed, timestamp: now() });
       return parsed;
     }
-  } catch (err) {
-    console.error("Synthesis failed:", err);
+    } catch (err) {
+      console.error(`Synthesis attempt ${attempt} error:`, err);
+      if (attempt >= MAX_SYNTHESIS_ATTEMPTS) break;
+    }
+  } // end retry loop
+
+  // Persist raw synthesis response for debugging when parse fails
+  if (lastRawResponse) {
+    console.error(`Synthesis raw response (for debugging, length=${lastRawResponse.length}):`, lastRawResponse.slice(0, 500));
   }
 
   // Deterministic fallback: extract roadmap from raw agent outputs when synthesis JSON fails
@@ -883,6 +933,9 @@ ${initialNaming.tagline ? `\n\n--- Early Tagline Direction ---\n${initialNaming.
     completed_at: null,
   };
 
+  if (AI_TEST_MODE) {
+    console.warn("⚠️  AI_TEST_MODE is active — agents will return mock content, not real LLM output");
+  }
   emit({ type: "run_started", run, timestamp: now() });
 
   // ── Phase 1: Research (solo — builds market foundation) ──

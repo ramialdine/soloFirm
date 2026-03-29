@@ -683,6 +683,14 @@ export default function AgentOrchestrator() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
 
+      {/* ── Test mode warning ── */}
+      {qaSource === "test" && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <strong>Test Mode Active</strong> — Agents are returning mock content, not real LLM output.
+          Unset <code className="rounded bg-amber-100 px-1 text-xs">AI_TEST_MODE</code> and restart for real runs.
+        </div>
+      )}
+
       {/* ── Step indicator ── */}
       <div className="flex items-center gap-2 text-xs">
         {[

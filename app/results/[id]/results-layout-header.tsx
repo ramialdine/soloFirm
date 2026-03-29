@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { getRunFromSession } from "@/lib/run-session";
+import type { RoadmapSource } from "@/types/agents";
 
 interface Props {
   runId: string;
   businessName: string | null;
   status: string | null;
   createdAt: string | null;
+  roadmapSource?: RoadmapSource | null;
 }
 
 export default function ResultsLayoutHeader({
@@ -15,10 +17,12 @@ export default function ResultsLayoutHeader({
   businessName: serverBusinessName,
   status: serverStatus,
   createdAt: serverCreatedAt,
+  roadmapSource: serverRoadmapSource,
 }: Props) {
   const [businessName, setBusinessName] = useState(serverBusinessName);
   const [status, setStatus] = useState(serverStatus);
   const [createdAt, setCreatedAt] = useState(serverCreatedAt);
+  const [roadmapSource, setRoadmapSource] = useState(serverRoadmapSource ?? null);
 
   useEffect(() => {
     // If server didn't have the run yet, read from sessionStorage
@@ -28,6 +32,7 @@ export default function ResultsLayoutHeader({
         setBusinessName(run.presentation?.businessName ?? run.domain ?? "Your Business");
         setStatus(run.status);
         setCreatedAt(run.created_at);
+        setRoadmapSource(run.presentation?.roadmapSource ?? null);
       }
     }
   }, [runId, serverBusinessName]);
@@ -35,7 +40,17 @@ export default function ResultsLayoutHeader({
   if (!businessName) return null;
 
   return (
-    <div className="mx-auto max-w-5xl px-6 pt-6">
+    <div className="mx-auto max-w-5xl px-6 pt-6 space-y-3">
+      {roadmapSource === "test_mock" && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+          <strong>Test Mode</strong> — This roadmap was generated from mock data, not real agent output.
+        </div>
+      )}
+      {roadmapSource === "deterministic_fallback" && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm text-blue-700">
+          <strong>Fallback Mode</strong> — Synthesis JSON failed. Roadmap was extracted from raw agent outputs via deterministic parser.
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-lg font-bold text-zinc-900">{businessName}</h1>
         {status && (
