@@ -111,12 +111,22 @@ export interface RoadmapStep {
 
 export interface Presentation {
   businessName: string;
+  nameSuggestions?: string[];
   tagline: string;
+  selectedBusinessStructure?: string;
   brandTheme: {
     primaryColor: string;   // hex
     secondaryColor: string; // hex
     accentColor: string;    // hex
     fontFamily: string;
+  };
+  brandTemplate?: {
+    voice?: string;
+    pillars?: string[];
+    taglineVariants?: string[];
+    visualDirection?: string;
+    logoPrompt?: string;
+    logoSvg?: string;
   };
   agentSummaries: AgentSummary[];
   roadmap: RoadmapStep[];

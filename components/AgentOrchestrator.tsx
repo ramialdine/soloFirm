@@ -565,6 +565,13 @@ export default function AgentOrchestrator() {
 
   const phaseLabels = ["Waiting", "Planning", "Research · Legal · Finance", "Brand", "Social Media", "Review"];
 
+  const getAgentDisplayContent = useCallback((agentId: AgentId) => {
+    const base = outputs[agentId]?.content ?? "";
+    if (agentId !== "legal") return base;
+    if (!presentation) return base;
+    return `## Selected Filing Details\n- Business Name: **${presentation.businessName}**\n- Entity Structure: **${presentation.selectedBusinessStructure ?? "Not selected yet"}**\n\n---\n\n${base}`;
+  }, [outputs, presentation]);
+
   // ── RENDER ────────────────────────────────────────────────────────────────
 
   return (
@@ -974,6 +981,7 @@ export default function AgentOrchestrator() {
             presentation={presentation}
             outputs={outputs}
             onPresentationChange={setPresentation}
+            onViewAgent={(agentId) => setExpandedAgent(agentId)}
             onFinalize={handleFinalize}
             runId={runId}
             saving={saving}
@@ -992,6 +1000,7 @@ export default function AgentOrchestrator() {
               presentation={presentation}
               outputs={outputs}
               onPresentationChange={setPresentation}
+              onViewAgent={(agentId) => setExpandedAgent(agentId)}
               onFinalize={handleFinalize}
               runId={runId}
               saving={saving}
@@ -1088,7 +1097,7 @@ export default function AgentOrchestrator() {
               </button>
             </div>
             <div className="overflow-y-auto px-6 py-5">
-              <MarkdownBody content={outputs[expandedAgent].content} />
+              <MarkdownBody content={getAgentDisplayContent(expandedAgent)} />
             </div>
             <div className="flex shrink-0 items-center justify-between border-t border-zinc-100 px-6 py-3">
               <button

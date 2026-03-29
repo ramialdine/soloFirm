@@ -2,7 +2,21 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { google } from "googleapis";
 
+const TEST_MODE = process.env.TEST_MODE === "true";
+
 export async function POST(req: NextRequest) {
+  if (TEST_MODE) {
+    const body = await req.json();
+    const channelName = body?.channelName || "Test Channel";
+    return Response.json({
+      ok: true,
+      channelId: "mock-channel-123",
+      url: "https://www.youtube.com/channel/mock-channel-123",
+      message: `[TEST MODE] YouTube channel set to \"${channelName}\".`,
+      existing: true,
+    });
+  }
+
   const session = await auth();
   const accessToken = (session as unknown as Record<string, unknown>)
     ?.accessToken as string | undefined;

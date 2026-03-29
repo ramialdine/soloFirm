@@ -3,6 +3,9 @@ import cors from "cors";
 import { randomUUID } from "crypto";
 import type { AutomationStatus, AutomationLogEntry, AutomationParams, PlatformCredentials, AutomationPlatform } from "../types/automation";
 import { runSocialSetup } from "./automations/index";
+import { runMockSetup } from "./automations/mock";
+
+const TEST_MODE = process.env.TEST_MODE === "true";
 
 const app = express();
 const PORT = process.env.AUTOMATION_PORT ? parseInt(process.env.AUTOMATION_PORT) : 3001;
@@ -100,10 +103,28 @@ app.post("/sessions", requireAuth, async (req, res) => {
 });
 
 async function runAutomation(session: Session, params: AutomationParams) {
+  emitStatus(session, "running");
+
+  if (TEST_MODE) {
+    emitLog(session, "[TEST MODE] Skipping browser — using dummy data");
+    const platforms = params.platforms ?? ["gmail", "instagram", "facebook", "twitter", "tiktok", "linkedin", "youtube"];
+    try {
+      await runMockSetup(
+        session,
+        platforms,
+        params,
+        (msg) => emitLog(session, msg),
+        (s) => pause(session, s),
+        (dataUrl) => emitSSE(session, { type: "screenshot", screenshotDataUrl: dataUrl, timestamp: new Date().toISOString() }),
+      );
+    } finally {
+      emitCredentialsAndFinish(session);
+    }
+    return;
+  }
+
   // Dynamic import to avoid loading Stagehand at startup
   const { Stagehand } = await import("@browserbasehq/stagehand");
-
-  emitStatus(session, "running");
   emitLog(session, "Launching browser…");
 
   const stagehand = new Stagehand({
@@ -114,7 +135,7 @@ async function runAutomation(session: Session, params: AutomationParams) {
       viewport: { width: 900, height: 700 },
     },
     model: {
-      modelName: "google/gemini-2.0-flash",
+      modelName: "gemini-2.5-flash-preview-04-17",
       apiKey: process.env.GEMINI_API_KEY ?? "",
     },
   });
@@ -138,30 +159,29 @@ async function runAutomation(session: Session, params: AutomationParams) {
       (msg) => emitLog(session, msg),
       (s: "paused_phone" | "paused_sms" | "paused_captcha") => pause(session, s),
     );
-
-    // Emit credentials (then clear from memory)
-    for (const [platform, creds] of Object.entries(session.credentials) as [AutomationPlatform, PlatformCredentials][]) {
-      emitSSE(session, {
-        type: "credential",
-        platform,
-        credentials: { ...creds },
-        timestamp: new Date().toISOString(),
-      });
-    }
-    // Clear passwords from server memory immediately
-    for (const platform of Object.keys(session.credentials) as AutomationPlatform[]) {
-      const c = session.credentials[platform];
-      if (c) c.password = "[cleared]";
-    }
-
-    emitStatus(session, "complete");
+    emitCredentialsAndFinish(session);
   } finally {
     if (session.screenshotInterval) clearInterval(session.screenshotInterval);
-    // Capture final screenshot before closing
     await captureScreenshot(session);
     await stagehand.close();
     session.stagehand = undefined;
   }
+}
+
+function emitCredentialsAndFinish(session: Session) {
+  for (const [platform, creds] of Object.entries(session.credentials) as [AutomationPlatform, PlatformCredentials][]) {
+    emitSSE(session, {
+      type: "credential",
+      platform,
+      credentials: { ...creds },
+      timestamp: new Date().toISOString(),
+    });
+  }
+  for (const platform of Object.keys(session.credentials) as AutomationPlatform[]) {
+    const c = session.credentials[platform];
+    if (c) c.password = "[cleared]";
+  }
+  emitStatus(session, "complete");
 }
 
 // ── GET /sessions/:id/events — SSE stream ─────────────────────────────────────

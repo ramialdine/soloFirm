@@ -2,7 +2,20 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { google } from "googleapis";
 
+const TEST_MODE = process.env.TEST_MODE === "true";
+
 export async function POST(req: NextRequest) {
+  if (TEST_MODE) {
+    const body = await req.json();
+    const businessName = body?.businessName || "Test Business";
+    return Response.json({
+      ok: true,
+      locationName: "locations/mock-123",
+      title: businessName,
+      message: `[TEST MODE] Google Business Profile \"${businessName}\" created successfully.`,
+    });
+  }
+
   const session = await auth();
   const accessToken = (session as unknown as Record<string, unknown>)?.accessToken as
     | string

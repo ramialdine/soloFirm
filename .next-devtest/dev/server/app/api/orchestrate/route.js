@@ -1,0 +1,10 @@
+var R=require("../../../chunks/[turbopack]_runtime.js")("server/app/api/orchestrate/route.js")
+R.c("server/chunks/node_modules_next_dist_12e_bno._.js")
+R.c("server/chunks/node_modules_@opentelemetry_api_build_esm_0ltshjr._.js")
+R.c("server/chunks/node_modules_openai_0q9zugw._.js")
+R.c("server/chunks/node_modules_@supabase_auth-js_dist_module_00jw3pg._.js")
+R.c("server/chunks/node_modules_04c.amm._.js")
+R.c("server/chunks/[root-of-the-server]__0s4nd_x._.js")
+R.c("server/chunks/_next-internal_server_app_api_orchestrate_route_actions_0iebzbd.js")
+R.m("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/app/api/orchestrate/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)")
+module.exports=R.m("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/app/api/orchestrate/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)").exports

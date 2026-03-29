@@ -8,6 +8,9 @@ interface RoadmapTimelineProps {
   steps: RoadmapStep[];
   accentColor?: string;
   onViewAgent?: (agentId: AgentId) => void;
+  selectedBusinessStructure?: string;
+  onBusinessStructureChange?: (value: string) => void;
+  businessStructureOptions?: string[];
 }
 
 // Group steps by phase
@@ -24,7 +27,14 @@ function groupByPhase(steps: RoadmapStep[]): { phase: string; steps: RoadmapStep
   return groups;
 }
 
-export default function RoadmapTimeline({ steps, accentColor = "#10b981", onViewAgent }: RoadmapTimelineProps) {
+export default function RoadmapTimeline({
+  steps,
+  accentColor = "#10b981",
+  onViewAgent,
+  selectedBusinessStructure,
+  onBusinessStructureChange,
+  businessStructureOptions,
+}: RoadmapTimelineProps) {
   // Track which steps the user has checked off (persisted to localStorage)
   const [completed, setCompleted] = useState<Set<string>>(() => {
     try {
@@ -244,6 +254,29 @@ export default function RoadmapTimeline({ steps, accentColor = "#10b981", onView
                               </button>
                             )}
                           </div>
+
+                          {/* Business structure selector for entity step */}
+                          {(step.id === "choose-entity" || /business structure/i.test(step.title)) && (
+                            <div>
+                              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1">
+                                Choose your business structure
+                              </p>
+                              <select
+                                value={selectedBusinessStructure ?? ""}
+                                onChange={(e) => onBusinessStructureChange?.(e.target.value)}
+                                className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 focus:border-zinc-400 focus:outline-none"
+                              >
+                                {(businessStructureOptions?.length
+                                  ? businessStructureOptions
+                                  : ["LLC", "S-Corp", "C-Corp", "Sole Proprietorship", "Not sure"]
+                                ).map((option) => (
+                                  <option key={option} value={option}>
+                                    {option}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
 
                           {/* Exact next action */}
                           <div>

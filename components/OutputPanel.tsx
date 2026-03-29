@@ -127,22 +127,137 @@ interface PackagingPanelProps {
   presentation: Presentation;
   outputs: Record<AgentId, AgentOutput>;
   onPresentationChange: (updated: Presentation) => void;
+  onViewAgent?: (agentId: AgentId) => void;
   onFinalize: () => void;
   runId: string | null;
   saving?: boolean;
   businessLocation?: string;
 }
 
+function titleCase(value: string): string {
+  return value
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+function deriveNameSuggestions(presentation: Presentation, brandContent: string): string[] {
+  const candidates = new Set<string>();
+
+  for (const name of presentation.nameSuggestions ?? []) {
+    if (name?.trim()) candidates.add(titleCase(name.trim()));
+  }
+
+  if (presentation.businessName?.trim()) {
+    candidates.add(titleCase(presentation.businessName.trim()));
+  }
+
+  const quoted = Array.from(brandContent.matchAll(/["“]([A-Za-z0-9&'\-\s]{3,40})["”]/g))
+    .map((m) => titleCase(m[1].trim()))
+    .filter((name) => name.split(" ").length <= 4);
+  for (const name of quoted) candidates.add(name);
+
+  const seed = titleCase((presentation.businessName || "Nova Launch").split(" ").slice(0, 2).join(" "));
+  const generated = [
+    `${seed} Labs`,
+    `${seed} Studio`,
+    `${seed} Works`,
+    `${seed} Collective`,
+    `${seed} Co.`,
+  ];
+  for (const name of generated) candidates.add(name);
+
+  return Array.from(candidates).filter(Boolean).slice(0, 8);
+}
+
+function buildFallbackLogoSvg(presentation: Presentation): string {
+  const safeName = (presentation.businessName || "SoloFirm").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const safeTagline = (presentation.tagline || "Launch your business in one run").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const { primaryColor, secondaryColor, accentColor } = presentation.brandTheme;
+  return `<svg width="1200" height="320" viewBox="0 0 1200 320" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="sf" x1="24" y1="24" x2="296" y2="296"><stop offset="0" stop-color="${secondaryColor}"/><stop offset="1" stop-color="${accentColor}"/></linearGradient></defs><rect x="24" y="24" width="272" height="272" rx="56" fill="url(#sf)"/><path d="M95 188c18 20 36 30 61 30 25 0 40-10 40-25 0-13-8-20-29-24l-31-6c-42-8-62-30-62-64 0-37 31-62 77-62 31 0 59 11 78 31" stroke="white" stroke-width="20" stroke-linecap="round"/><text x="338" y="168" fill="${primaryColor}" font-family="Inter, Arial, sans-serif" font-size="108" font-weight="800">${safeName}</text><text x="342" y="216" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="34">${safeTagline}</text></svg>`;
+}
+
+function withLegalSelections(content: string, presentation: Presentation): string {
+  const lines = [
+    "## Selected Filing Details",
+    `- Business Name: **${presentation.businessName}**`,
+    `- Entity Structure: **${presentation.selectedBusinessStructure ?? "Not selected yet"}**`,
+    "",
+    "---",
+    "",
+  ];
+  return `${lines.join("\n")}${content}`;
+}
+
 export function PackagingPanel({
   presentation,
   outputs,
   onPresentationChange,
+  onViewAgent,
   onFinalize,
   runId,
   saving,
   businessLocation,
 }: PackagingPanelProps) {
   const { brandTheme } = presentation;
+  const [logoLoading, setLogoLoading] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const [logoModalOpen, setLogoModalOpen] = useState(false);
+  const nameSuggestions = deriveNameSuggestions(presentation, outputs.brand?.content ?? "");
+
+  const currentLogoSvg = presentation.brandTemplate?.logoSvg ?? "";
+  const logoDownloadUrl = currentLogoSvg
+    ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(currentLogoSvg)}`
+    : "";
+
+  const generateLogo = async () => {
+    setLogoLoading(true);
+    setLogoError(null);
+    try {
+      const res = await fetch("/api/brand/logo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessName: presentation.businessName,
+          tagline: presentation.tagline,
+          brandTheme: presentation.brandTheme,
+          logoPrompt: presentation.brandTemplate?.logoPrompt,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || "Logo generation failed");
+      }
+      const data = await res.json();
+      if (data?.svg) {
+        onPresentationChange({
+          ...presentation,
+          brandTemplate: {
+            ...(presentation.brandTemplate ?? {}),
+            logoSvg: data.svg,
+          },
+        });
+        setLogoModalOpen(true);
+      } else {
+        throw new Error("No SVG was returned by the logo service");
+      }
+    } catch (err) {
+      const fallbackSvg = buildFallbackLogoSvg(presentation);
+      onPresentationChange({
+        ...presentation,
+        brandTemplate: {
+          ...(presentation.brandTemplate ?? {}),
+          logoSvg: fallbackSvg,
+        },
+      });
+      setLogoError(err instanceof Error ? err.message : "Could not generate logo from API; fallback logo created.");
+      setLogoModalOpen(true);
+    } finally {
+      setLogoLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -216,12 +331,112 @@ export function PackagingPanel({
         </div>
       </div>
 
+      {/* Business name questionnaire */}
+      {nameSuggestions.length > 0 && (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h3 className="text-sm font-semibold text-zinc-800">Pick your business name</h3>
+          <p className="mt-1 text-xs text-zinc-500">
+            Choose one option below, or keep editing the custom name above. Your selection will be reflected in your legal package.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {nameSuggestions.map((name) => {
+              const selected = presentation.businessName === name;
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => onPresentationChange({ ...presentation, businessName: name })}
+                  className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                    selected
+                      ? "border-zinc-900 bg-zinc-900 text-white"
+                      : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
+                  }`}
+                >
+                  {name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Brand template + AI logo */}
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-800">Brand template</h3>
+            <p className="text-xs text-zinc-500 mt-1">Generated by the Brand Agent and editable through your final package choices.</p>
+          </div>
+          <button
+            type="button"
+            onClick={generateLogo}
+            disabled={logoLoading}
+            className="rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-700 disabled:opacity-50"
+          >
+            {logoLoading ? "Generating logo..." : "Generate AI Logo"}
+          </button>
+        </div>
+
+        {logoError && (
+          <p className="mt-2 text-xs text-amber-700">
+            {logoError}
+          </p>
+        )}
+
+        {presentation.brandTemplate?.voice && (
+          <p className="mt-4 text-sm text-zinc-700"><span className="font-semibold">Voice:</span> {presentation.brandTemplate.voice}</p>
+        )}
+
+        {presentation.brandTemplate?.pillars?.length ? (
+          <div className="mt-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-1">Messaging pillars</p>
+            <ul className="list-disc ml-4 space-y-1 text-sm text-zinc-700">
+              {presentation.brandTemplate.pillars.map((p, i) => <li key={i}>{p}</li>)}
+            </ul>
+          </div>
+        ) : null}
+
+        {presentation.brandTemplate?.logoSvg ? (
+          <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">AI logo preview</p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setLogoModalOpen(true)}
+                  className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:text-zinc-900"
+                >
+                  Open
+                </button>
+                <a
+                  href={logoDownloadUrl}
+                  download={`${presentation.businessName || "solofirm"}-logo.svg`}
+                  className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:text-zinc-900"
+                >
+                  Download
+                </a>
+              </div>
+            </div>
+            <div
+              className="[&>svg]:h-24 [&>svg]:w-auto"
+              dangerouslySetInnerHTML={{ __html: presentation.brandTemplate.logoSvg }}
+            />
+          </div>
+        ) : null}
+      </div>
+
       {/* Roadmap timeline */}
       {presentation.roadmap && presentation.roadmap.length > 0 && (
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-sm">
           <RoadmapTimeline
             steps={presentation.roadmap}
             accentColor={brandTheme.accentColor}
+            onViewAgent={onViewAgent}
+            selectedBusinessStructure={presentation.selectedBusinessStructure}
+            onBusinessStructureChange={(value) =>
+              onPresentationChange({ ...presentation, selectedBusinessStructure: value })
+            }
+            businessStructureOptions={["LLC", "S-Corp", "C-Corp", "Sole Proprietorship", "Not sure"]}
           />
         </div>
       )}
@@ -238,7 +453,7 @@ export function PackagingPanel({
                 key={id}
                 agentId={id}
                 summary={summary}
-                content={outputs[id].content}
+                content={id === "legal" ? withLegalSelections(outputs[id].content, presentation) : outputs[id].content}
                 brandTheme={brandTheme}
               />
             );
@@ -280,6 +495,55 @@ export function PackagingPanel({
           </button>
         </div>
       </div>
+
+      {/* Logo popup */}
+      {logoModalOpen && currentLogoSvg && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => setLogoModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-4xl rounded-2xl bg-white shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-3">
+              <div>
+                <p className="text-sm font-semibold text-zinc-900">Generated Logo</p>
+                <p className="text-xs text-zinc-500">Preview and download for immediate use</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLogoModalOpen(false)}
+                className="rounded-full p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-800"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 bg-zinc-50">
+              <div
+                className="rounded-xl border border-zinc-200 bg-white p-6 [&>svg]:w-full [&>svg]:h-auto"
+                dangerouslySetInnerHTML={{ __html: currentLogoSvg }}
+              />
+            </div>
+            <div className="flex justify-end gap-2 border-t border-zinc-100 px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setLogoModalOpen(false)}
+                className="rounded-lg border border-zinc-200 px-4 py-2 text-xs font-medium text-zinc-600"
+              >
+                Close
+              </button>
+              <a
+                href={logoDownloadUrl}
+                download={`${presentation.businessName || "solofirm"}-logo.svg`}
+                className="rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-700"
+              >
+                Download SVG
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -339,7 +603,7 @@ export function ResultsPresentation({ presentation, outputs }: ResultsPresentati
               key={id}
               agentId={id}
               summary={summary}
-              content={outputs[id].content}
+              content={id === "legal" ? withLegalSelections(outputs[id].content, presentation) : outputs[id].content}
               brandTheme={brandTheme}
             />
           );

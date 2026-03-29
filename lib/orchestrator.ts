@@ -12,11 +12,43 @@ import { AGENT_PROMPTS, AGENT_META } from "@/types/agents";
 import { CHAT_MODEL, getOpenAI } from "@/lib/openai";
 
 const AGENT_TIMEOUT_MS = 60_000;
+const TEST_MODE = process.env.TEST_MODE === "true";
 
 type Emitter = (event: SSEEvent) => void;
 
 function now() {
   return new Date().toISOString();
+}
+
+function toTitleCase(value: string) {
+  return value
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+function buildNameSuggestions(primary: string, idea: string): string[] {
+  const cleanPrimary = toTitleCase(primary || "Your Business");
+  const words = idea
+    .replace(/[^a-zA-Z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2)
+    .slice(0, 3)
+    .map((w) => toTitleCase(w));
+
+  const stem = words.join(" ") || cleanPrimary;
+  const options = [
+    cleanPrimary,
+    `${stem} Labs`,
+    `${stem} Studio`,
+    `${stem} Works`,
+    `${stem} Collective`,
+    `${stem} Co.`,
+  ];
+
+  return Array.from(new Set(options)).slice(0, 6);
 }
 
 function makeEmptyOutputs(): Record<AgentId, AgentOutput> {
@@ -59,6 +91,23 @@ async function callAgent(
   emit: Emitter
 ): Promise<string> {
   emit({ type: "agent_started", agentId, timestamp: now() });
+
+  if (TEST_MODE) {
+    const mockContent: Record<AgentId, string> = {
+      planner: `### Week 1-2\n- Validate offer with 10 customer interviews\n- Choose business structure and register entity\n- Apply for EIN and open business checking account\n\n### Week 3-6\n- Build MVP landing page and onboarding flow\n- Finalize pricing and pilot terms\n\n### Week 7-12\n- Launch outreach campaign and track conversion KPIs`,
+      research: `### Market Snapshot\n- Primary customer segment identified with urgent pain\n- 5 local and online competitors analyzed\n- Pricing opportunity: premium-lite positioning with faster turnaround`,
+      legal: `### Entity + Compliance\n- Recommended: LLC (convert to S-Corp later if tax-efficient)\n- Draft filing checklist and operating agreement outline\n- Required compliance steps listed by state and timeline`,
+      finance: `### Financial Setup\n- Business bank + bookkeeping stack recommended\n- 12-month simple cashflow model and breakeven target\n- Weekly KPI dashboard: leads, close rate, CAC, cash runway`,
+      brand: `### Brand Package\n- Name candidates, tagline options, voice attributes\n- Color palette + typography pairings\n- Logo concept directions and visual style`,
+      social: `### Social Launch Kit\n- Platform prioritization and posting cadence\n- Bio/copy templates and 30-day content prompts\n- Launch-week campaign with CTA and tracking links`,
+      critic: `### Critical Review\n- Biggest risk: inconsistent execution cadence\n- Mitigation: weekly operating rhythm and KPI checkpoints\n- Fastest win: targeted offer + direct outreach loop`,
+    };
+
+    const content = mockContent[agentId];
+    emit({ type: "agent_chunk", agentId, content, timestamp: now() });
+    emit({ type: "agent_complete", agentId, content, timestamp: now() });
+    return content;
+  }
 
   const openai = getOpenAI();
   const controller = new AbortController();
@@ -114,12 +163,21 @@ CRITICAL: Return ONLY a valid JSON object — no markdown, no explanation, no pr
 
 {
   "businessName": "The best business name from the Brand Agent output (or generate one if none exists)",
+  "nameSuggestions": ["Name option 1", "Name option 2", "Name option 3", "Name option 4", "Name option 5"],
   "tagline": "The best tagline from the Brand Agent output",
+  "selectedBusinessStructure": "One of: LLC, S-Corp, C-Corp, Sole Proprietorship",
   "brandTheme": {
     "primaryColor": "#hex from brand package color palette",
     "secondaryColor": "#hex from brand package",
     "accentColor": "#hex from brand package",
     "fontFamily": "The heading font recommendation from brand package"
+  },
+  "brandTemplate": {
+    "voice": "2-3 words that define brand voice",
+    "pillars": ["pillar 1", "pillar 2", "pillar 3"],
+    "taglineVariants": ["variant 1", "variant 2", "variant 3"],
+    "visualDirection": "1-2 sentences describing visual style",
+    "logoPrompt": "A production-ready prompt for an AI image/logo model"
   },
   "agentSummaries": [
     {
@@ -153,9 +211,12 @@ CRITICAL: Return ONLY a valid JSON object — no markdown, no explanation, no pr
 
 Rules for agentSummaries:
 - businessName: Use the brand agent's top name recommendation. If none, invent a memorable one.
+- nameSuggestions: Provide 4-6 strong options the founder can choose from. Include businessName as one option.
 - tagline: Use the brand agent's top tagline pick.
+- selectedBusinessStructure: Pick the best recommendation based on Legal + Finance outputs.
 - brandTheme colors: Extract exact hex codes from brand package. If unavailable, pick professional defaults.
 - fontFamily: Use the heading font from the brand package.
+- brandTemplate: Keep it concise and practical (voice, 3 pillars, 3 tagline variants, visual direction, and a detailed logoPrompt for AI generation).
 - Each headline should be exciting and specific — NOT generic. Reference the actual business.
 - Each bullet: a concrete fact or deliverable, max 15 words.
 - Include ALL 7 agents in order: planner, research, legal, finance, brand, social, critic.
@@ -176,8 +237,48 @@ Rules for roadmap (VERY IMPORTANT — this is the user's step-by-step journey):
 
 async function synthesizePresentation(
   outputs: Record<AgentId, AgentOutput>,
+  intake: IntakeData,
   emit: Emitter
 ): Promise<Presentation | null> {
+  if (TEST_MODE) {
+    const mock: Presentation = {
+      businessName: "SoloSpark",
+      nameSuggestions: ["SoloSpark", "LaunchFoundry", "FounderLift", "PilotGrid", "Northline Studio"],
+      tagline: "From idea to launch in one run",
+      selectedBusinessStructure: intake.entityPreference || "LLC",
+      brandTheme: {
+        primaryColor: "#18181b",
+        secondaryColor: "#2563eb",
+        accentColor: "#10b981",
+        fontFamily: "Inter",
+      },
+      brandTemplate: {
+        voice: "Confident, practical, founder-first",
+        pillars: ["Clarity", "Execution", "Momentum"],
+        taglineVariants: ["Launch faster, smarter", "Build with momentum", "Strategy that ships"],
+        visualDirection: "Clean geometric forms, high contrast typography, modern startup aesthetic.",
+        logoPrompt: "Create a modern geometric startup logo with icon + wordmark for SoloSpark using deep charcoal, electric blue, and emerald accent.",
+      },
+      agentSummaries: [
+        { agentId: "planner", headline: "Your 90-day launch roadmap is set", bullets: ["Priorities sequenced week-by-week", "Critical path is clearly defined", "Immediate actions identified"] },
+        { agentId: "research", headline: "Your market opportunity is validated", bullets: ["Customer segment is specific", "Competitive whitespace identified", "Pricing direction established"] },
+        { agentId: "legal", headline: "Your legal structure is ready to execute", bullets: ["Entity recommendation prepared", "Compliance checklist provided", "Filing sequence clarified"] },
+        { agentId: "finance", headline: "Your financial baseline is investor-ready", bullets: ["Cashflow model established", "Key KPIs selected", "Breakeven target defined"] },
+        { agentId: "brand", headline: "Your brand identity is now cohesive", bullets: ["Name options generated", "Voice and messaging aligned", "Visual direction documented"] },
+        { agentId: "social", headline: "Your launch content system is ready", bullets: ["Platform strategy prioritized", "30-day content plan included", "CTAs and hooks prepared"] },
+        { agentId: "critic", headline: "Your execution risks are now controlled", bullets: ["Top risks surfaced", "Mitigations mapped", "Fastest path to traction identified"] },
+      ],
+      roadmap: [
+        { id: "choose-entity", title: "Choose Your Business Structure", week: "Week 1", phase: "Foundation", why: "This determines liability and tax treatment for your launch.", prepared: "See your Legal Package for entity comparison and recommendation.", action: "Select LLC or S-Corp and confirm with your filing plan.", agentId: "legal", estimatedTime: "15 minutes", cost: "Free" },
+        { id: "register-entity", title: "Register Your Business", week: "Week 1", phase: "Foundation", why: "Registration unlocks EIN, banking, and contracts.", prepared: "Legal checklist and filing order are prepared for you.", action: "File your entity with the state portal.", agentId: "legal", estimatedTime: "30 minutes", cost: "Varies by state" },
+        { id: "apply-ein", title: "Apply for EIN", week: "Week 1", phase: "Foundation", why: "You need EIN for banking and taxes.", prepared: "Financial setup guide includes required fields.", action: "Submit EIN application via IRS online portal.", actionUrl: "https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online", agentId: "finance", estimatedTime: "10 minutes", cost: "Free" },
+      ],
+    };
+
+    emit({ type: "synthesis_complete", presentation: mock, timestamp: now() });
+    return mock;
+  }
+
   const agentIds: AgentId[] = ["planner", "research", "legal", "finance", "brand", "social", "critic"];
   const summaryInput = agentIds
     .map((id) => `--- ${AGENT_META[id].label} Output ---\n${outputs[id].content.slice(0, 2000)}`)
@@ -216,12 +317,27 @@ async function synthesizePresentation(
   // Fallback: build a minimal presentation from raw outputs
   const fallback: Presentation = {
     businessName: "Your Business",
+    nameSuggestions: [
+      "Your Business Co.",
+      "Summit Launch Studio",
+      "Northstar Ventures",
+      "Catalyst Collective",
+      "Foundry Works",
+    ],
     tagline: "Ready to launch",
+    selectedBusinessStructure: intake.entityPreference || "Not sure",
     brandTheme: {
       primaryColor: "#18181b",
       secondaryColor: "#3b82f6",
       accentColor: "#10b981",
       fontFamily: "Inter",
+    },
+    brandTemplate: {
+      voice: "Clear, trustworthy, modern",
+      pillars: ["Credibility", "Simplicity", "Execution"],
+      taglineVariants: ["Built to launch", "From idea to revenue", "Launch in one run"],
+      visualDirection: "Minimal modern typography, strong contrast, geometric iconography.",
+      logoPrompt: "Design a modern startup logo for 'Your Business' using bold geometric forms, clean sans-serif typography, and a blue/green palette with transparent background.",
     },
     agentSummaries: agentIds.map((id) => ({
       agentId: id,
@@ -376,7 +492,19 @@ ${socialResult}`;
   emit({ type: "phase_complete", phase: 5, timestamp: now() });
 
   // ── Synthesis: derive presentation metadata ──
-  const presentation = await synthesizePresentation(outputs, emit);
+  const presentation = await synthesizePresentation(outputs, intake, emit);
+
+  if (presentation && !presentation.selectedBusinessStructure) {
+    presentation.selectedBusinessStructure = intake.entityPreference || "Not sure";
+  }
+
+  if (presentation) {
+    const generated = buildNameSuggestions(presentation.businessName, intake.businessIdea);
+    const merged = Array.from(
+      new Set([...(presentation.nameSuggestions ?? []), ...generated])
+    );
+    presentation.nameSuggestions = merged.slice(0, 6);
+  }
 
   // ── Finalize ──
   const hasErrors = Object.values(outputs).some((o) => o.status === "error");
