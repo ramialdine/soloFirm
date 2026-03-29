@@ -7,7 +7,9 @@
 - **Type contract layer**: [types/agents.ts](../types/agents.ts)
 - **AI provider client**: [lib/openai.ts](../lib/openai.ts)
 - **Persistence**: Supabase (`runs`, `waitlist`)
+- **Persistence fallback**: local JSON run store (`data/runs-local.json`) when Supabase is unavailable
 - **Automation sidecar**: [automation-server/index.ts](../automation-server/index.ts)
+- **Outbound integrations**: run completion webhooks via [lib/webhooks.ts](../lib/webhooks.ts)
 
 ## 2) Request lifecycle
 
@@ -17,6 +19,7 @@
 4. Agent pipeline executes by phase dependencies.
 5. Synthesis emits a `Presentation` with roadmap and summaries.
 6. Results are persisted.
+7. Optional `run_complete` webhooks are delivered to configured partner URLs.
 7. Optional automation session is started through `POST /api/automation/sessions`.
 
 ## 2.1 Sequence diagram (runtime)
@@ -45,6 +48,7 @@ Failure propagation:
 - Agent timeout/error emits `agent_error` and can still produce `partial` run.
 - Sidecar failure surfaces through `/api/automation/health` and session status events.
 - Persistence failures are handled best-effort and do not block stream completion.
+- If Supabase is down, run read/export/finalize paths use local fallback storage.
 
 ## 3) Agent phase graph
 
@@ -104,11 +108,14 @@ Core `runs` columns used by runtime:
 - Structured error events and partial completion support
 - JSON extraction fallback in QA/synthesis flows
 - Best-effort persistence to avoid user-facing hard failures
+- Local run-store fallback for read/export/finalize continuity
+- Outbound webhook delivery is best-effort and does not block `run_complete` stream emission
 
 ## 7) Current constraints
 
-- Some ecosystem endpoints are planned but not fully standardized (read/export API surfaces).
+- Read/export/webhook endpoints exist but are still single-version (`v1` implicit) and not rate-limited.
 - Browser-based automation is inherently variable by provider UI changes.
+- Local fallback storage is single-node and intended for demo reliability, not multi-instance production use.
 
 ## 8) Scale path (post-demo)
 
