@@ -4,6 +4,79 @@ import { useState } from "react";
 import type { RoadmapStep, RoadmapStepStatus, AgentId } from "@/types/agents";
 import { AGENT_META } from "@/types/agents";
 
+// Secretary of State filing URLs by state and entity type
+const SOS_URLS: Record<string, Record<string, string>> = {
+  Alabama: { LLC: "https://www.sos.alabama.gov/business-entities/llc", "S-Corp": "https://www.sos.alabama.gov/business-entities/corporations", "C-Corp": "https://www.sos.alabama.gov/business-entities/corporations", "Sole Proprietorship": "https://www.sos.alabama.gov/business-entities" },
+  Alaska: { LLC: "https://www.commerce.alaska.gov/web/cbpl/businesslicensing", "S-Corp": "https://www.commerce.alaska.gov/web/cbpl/businesslicensing", "C-Corp": "https://www.commerce.alaska.gov/web/cbpl/businesslicensing", "Sole Proprietorship": "https://www.commerce.alaska.gov/web/cbpl/businesslicensing" },
+  Arizona: { LLC: "https://ecorp.azcc.gov/BusinessSearch", "S-Corp": "https://ecorp.azcc.gov/BusinessSearch", "C-Corp": "https://ecorp.azcc.gov/BusinessSearch", "Sole Proprietorship": "https://azsos.gov/business/trade-names" },
+  Arkansas: { LLC: "https://www.sos.arkansas.gov/corps/search_all.php", "S-Corp": "https://www.sos.arkansas.gov/corps/search_all.php", "C-Corp": "https://www.sos.arkansas.gov/corps/search_all.php", "Sole Proprietorship": "https://www.sos.arkansas.gov" },
+  California: { LLC: "https://bizfileonline.sos.ca.gov/", "S-Corp": "https://bizfileonline.sos.ca.gov/", "C-Corp": "https://bizfileonline.sos.ca.gov/", "Sole Proprietorship": "https://www.sos.ca.gov/business-programs/business-entities/fictitious-business-name" },
+  Colorado: { LLC: "https://myofiling.sos.state.co.us/", "S-Corp": "https://myofiling.sos.state.co.us/", "C-Corp": "https://myofiling.sos.state.co.us/", "Sole Proprietorship": "https://myofiling.sos.state.co.us/" },
+  Connecticut: { LLC: "https://service.ct.gov/business/s/onlinebusiness", "S-Corp": "https://service.ct.gov/business/s/onlinebusiness", "C-Corp": "https://service.ct.gov/business/s/onlinebusiness", "Sole Proprietorship": "https://service.ct.gov/business/s/onlinebusiness" },
+  Delaware: { LLC: "https://icis.corp.delaware.gov/Ecorp/EntitySearch/NameSearch.aspx", "S-Corp": "https://icis.corp.delaware.gov/Ecorp/EntitySearch/NameSearch.aspx", "C-Corp": "https://icis.corp.delaware.gov/Ecorp/EntitySearch/NameSearch.aspx", "Sole Proprietorship": "https://sos.delaware.gov/business-services/" },
+  Florida: { LLC: "https://dos.fl.gov/sunbiz/manage-e-file/", "S-Corp": "https://dos.fl.gov/sunbiz/manage-e-file/", "C-Corp": "https://dos.fl.gov/sunbiz/manage-e-file/", "Sole Proprietorship": "https://dos.fl.gov/sunbiz/manage-e-file/" },
+  Georgia: { LLC: "https://ecorp.sos.ga.gov/", "S-Corp": "https://ecorp.sos.ga.gov/", "C-Corp": "https://ecorp.sos.ga.gov/", "Sole Proprietorship": "https://ecorp.sos.ga.gov/" },
+  Hawaii: { LLC: "https://hbe.ehawaii.gov/documents/home.html", "S-Corp": "https://hbe.ehawaii.gov/documents/home.html", "C-Corp": "https://hbe.ehawaii.gov/documents/home.html", "Sole Proprietorship": "https://hbe.ehawaii.gov/documents/home.html" },
+  Idaho: { LLC: "https://sos.idaho.gov/business-services/business-entity-filing/", "S-Corp": "https://sos.idaho.gov/business-services/business-entity-filing/", "C-Corp": "https://sos.idaho.gov/business-services/business-entity-filing/", "Sole Proprietorship": "https://sos.idaho.gov" },
+  Illinois: { LLC: "https://www.ilsos.gov/departments/business_services/home.html", "S-Corp": "https://www.ilsos.gov/departments/business_services/home.html", "C-Corp": "https://www.ilsos.gov/departments/business_services/home.html", "Sole Proprietorship": "https://www.ilsos.gov" },
+  Indiana: { LLC: "https://inbiz.in.gov/", "S-Corp": "https://inbiz.in.gov/", "C-Corp": "https://inbiz.in.gov/", "Sole Proprietorship": "https://inbiz.in.gov/" },
+  Iowa: { LLC: "https://sos.iowa.gov/business/filingforms.html", "S-Corp": "https://sos.iowa.gov/business/filingforms.html", "C-Corp": "https://sos.iowa.gov/business/filingforms.html", "Sole Proprietorship": "https://sos.iowa.gov" },
+  Kansas: { LLC: "https://www.sos.ks.gov/business/business.html", "S-Corp": "https://www.sos.ks.gov/business/business.html", "C-Corp": "https://www.sos.ks.gov/business/business.html", "Sole Proprietorship": "https://www.sos.ks.gov" },
+  Kentucky: { LLC: "https://sos.ky.gov/bus/business-filings/Pages/default.aspx", "S-Corp": "https://sos.ky.gov/bus/business-filings/Pages/default.aspx", "C-Corp": "https://sos.ky.gov/bus/business-filings/Pages/default.aspx", "Sole Proprietorship": "https://sos.ky.gov" },
+  Louisiana: { LLC: "https://www.sos.la.gov/BusinessServices/", "S-Corp": "https://www.sos.la.gov/BusinessServices/", "C-Corp": "https://www.sos.la.gov/BusinessServices/", "Sole Proprietorship": "https://www.sos.la.gov/BusinessServices/" },
+  Maine: { LLC: "https://www.maine.gov/sos/cec/corp/", "S-Corp": "https://www.maine.gov/sos/cec/corp/", "C-Corp": "https://www.maine.gov/sos/cec/corp/", "Sole Proprietorship": "https://www.maine.gov/sos/cec/corp/" },
+  Maryland: { LLC: "https://egov.maryland.gov/businessexpress/", "S-Corp": "https://egov.maryland.gov/businessexpress/", "C-Corp": "https://egov.maryland.gov/businessexpress/", "Sole Proprietorship": "https://egov.maryland.gov/businessexpress/" },
+  Massachusetts: { LLC: "https://corp.sec.state.ma.us/CorpWeb/CorpSearch/CorpSearch.aspx", "S-Corp": "https://corp.sec.state.ma.us/CorpWeb/CorpSearch/CorpSearch.aspx", "C-Corp": "https://corp.sec.state.ma.us/CorpWeb/CorpSearch/CorpSearch.aspx", "Sole Proprietorship": "https://www.sec.state.ma.us/cor/coridx.htm" },
+  Michigan: { LLC: "https://www.michigan.gov/lara/bureau-list/corporations", "S-Corp": "https://www.michigan.gov/lara/bureau-list/corporations", "C-Corp": "https://www.michigan.gov/lara/bureau-list/corporations", "Sole Proprietorship": "https://www.michigan.gov/lara/bureau-list/corporations" },
+  Minnesota: { LLC: "https://mblsportal.sos.state.mn.us/", "S-Corp": "https://mblsportal.sos.state.mn.us/", "C-Corp": "https://mblsportal.sos.state.mn.us/", "Sole Proprietorship": "https://mblsportal.sos.state.mn.us/" },
+  Mississippi: { LLC: "https://www.sos.ms.gov/business-services/", "S-Corp": "https://www.sos.ms.gov/business-services/", "C-Corp": "https://www.sos.ms.gov/business-services/", "Sole Proprietorship": "https://www.sos.ms.gov" },
+  Missouri: { LLC: "https://www.sos.mo.gov/business/corporations/", "S-Corp": "https://www.sos.mo.gov/business/corporations/", "C-Corp": "https://www.sos.mo.gov/business/corporations/", "Sole Proprietorship": "https://www.sos.mo.gov" },
+  Montana: { LLC: "https://biz.sosmt.gov/", "S-Corp": "https://biz.sosmt.gov/", "C-Corp": "https://biz.sosmt.gov/", "Sole Proprietorship": "https://biz.sosmt.gov/" },
+  Nebraska: { LLC: "https://www.nebraska.gov/sos/corp/corpsearch.cgi", "S-Corp": "https://www.nebraska.gov/sos/corp/corpsearch.cgi", "C-Corp": "https://www.nebraska.gov/sos/corp/corpsearch.cgi", "Sole Proprietorship": "https://sos.nebraska.gov" },
+  Nevada: { LLC: "https://esos.nv.gov/EntitySearch/OnlineEntitySearch", "S-Corp": "https://esos.nv.gov/EntitySearch/OnlineEntitySearch", "C-Corp": "https://esos.nv.gov/EntitySearch/OnlineEntitySearch", "Sole Proprietorship": "https://esos.nv.gov" },
+  "New Hampshire": { LLC: "https://www.sos.nh.gov/corporations/", "S-Corp": "https://www.sos.nh.gov/corporations/", "C-Corp": "https://www.sos.nh.gov/corporations/", "Sole Proprietorship": "https://www.sos.nh.gov" },
+  "New Jersey": { LLC: "https://www.njportal.com/dor/businessrecords/", "S-Corp": "https://www.njportal.com/dor/businessrecords/", "C-Corp": "https://www.njportal.com/dor/businessrecords/", "Sole Proprietorship": "https://www.njportal.com/dor/businessrecords/" },
+  "New Mexico": { LLC: "https://portal.sos.state.nm.us/BFS/online/CorporationBusinessSearch", "S-Corp": "https://portal.sos.state.nm.us/BFS/online/CorporationBusinessSearch", "C-Corp": "https://portal.sos.state.nm.us/BFS/online/CorporationBusinessSearch", "Sole Proprietorship": "https://www.sos.state.nm.us" },
+  "New York": { LLC: "https://apps.dos.ny.gov/corpweb/controller/application?execution=e1s1", "S-Corp": "https://apps.dos.ny.gov/corpweb/controller/application?execution=e1s1", "C-Corp": "https://apps.dos.ny.gov/corpweb/controller/application?execution=e1s1", "Sole Proprietorship": "https://www.dos.ny.gov/corps/" },
+  "North Carolina": { LLC: "https://www.sosnc.gov/online_services/business_registration/", "S-Corp": "https://www.sosnc.gov/online_services/business_registration/", "C-Corp": "https://www.sosnc.gov/online_services/business_registration/", "Sole Proprietorship": "https://www.sosnc.gov" },
+  "North Dakota": { LLC: "https://firststop.sos.nd.gov/", "S-Corp": "https://firststop.sos.nd.gov/", "C-Corp": "https://firststop.sos.nd.gov/", "Sole Proprietorship": "https://firststop.sos.nd.gov/" },
+  Ohio: { LLC: "https://businesssearch.ohiosos.gov/", "S-Corp": "https://businesssearch.ohiosos.gov/", "C-Corp": "https://businesssearch.ohiosos.gov/", "Sole Proprietorship": "https://www.ohiosos.gov" },
+  Oklahoma: { LLC: "https://www.sos.ok.gov/corp/corpInquiryFind.aspx", "S-Corp": "https://www.sos.ok.gov/corp/corpInquiryFind.aspx", "C-Corp": "https://www.sos.ok.gov/corp/corpInquiryFind.aspx", "Sole Proprietorship": "https://www.sos.ok.gov" },
+  Oregon: { LLC: "https://sos.oregon.gov/business/pages/find.aspx", "S-Corp": "https://sos.oregon.gov/business/pages/find.aspx", "C-Corp": "https://sos.oregon.gov/business/pages/find.aspx", "Sole Proprietorship": "https://sos.oregon.gov/business" },
+  Pennsylvania: { LLC: "https://www.corporations.pa.gov/search/corpsearch", "S-Corp": "https://www.corporations.pa.gov/search/corpsearch", "C-Corp": "https://www.corporations.pa.gov/search/corpsearch", "Sole Proprietorship": "https://www.dos.pa.gov/BusinessCharities/Business" },
+  "Rhode Island": { LLC: "https://business.sos.ri.gov/CorpWeb/CorpSearch/CorpSearch.aspx", "S-Corp": "https://business.sos.ri.gov/CorpWeb/CorpSearch/CorpSearch.aspx", "C-Corp": "https://business.sos.ri.gov/CorpWeb/CorpSearch/CorpSearch.aspx", "Sole Proprietorship": "https://www.sos.ri.gov" },
+  "South Carolina": { LLC: "https://businessfilings.sc.gov/", "S-Corp": "https://businessfilings.sc.gov/", "C-Corp": "https://businessfilings.sc.gov/", "Sole Proprietorship": "https://businessfilings.sc.gov/" },
+  "South Dakota": { LLC: "https://sosenterprise.sd.gov/BusinessServices/Business/FilingSearch.aspx", "S-Corp": "https://sosenterprise.sd.gov/BusinessServices/Business/FilingSearch.aspx", "C-Corp": "https://sosenterprise.sd.gov/BusinessServices/Business/FilingSearch.aspx", "Sole Proprietorship": "https://sdsos.gov" },
+  Tennessee: { LLC: "https://tnbear.tn.gov/", "S-Corp": "https://tnbear.tn.gov/", "C-Corp": "https://tnbear.tn.gov/", "Sole Proprietorship": "https://tnbear.tn.gov/" },
+  Texas: { LLC: "https://www.sos.state.tx.us/corp/sosda/index.shtml", "S-Corp": "https://www.sos.state.tx.us/corp/sosda/index.shtml", "C-Corp": "https://www.sos.state.tx.us/corp/sosda/index.shtml", "Sole Proprietorship": "https://www.sos.state.tx.us" },
+  Utah: { LLC: "https://secure.utah.gov/bes/", "S-Corp": "https://secure.utah.gov/bes/", "C-Corp": "https://secure.utah.gov/bes/", "Sole Proprietorship": "https://secure.utah.gov/bes/" },
+  Vermont: { LLC: "https://bizfilings.vermont.gov/online/Filings/", "S-Corp": "https://bizfilings.vermont.gov/online/Filings/", "C-Corp": "https://bizfilings.vermont.gov/online/Filings/", "Sole Proprietorship": "https://sos.vermont.gov/corporations/" },
+  Virginia: { LLC: "https://cis.scc.virginia.gov/", "S-Corp": "https://cis.scc.virginia.gov/", "C-Corp": "https://cis.scc.virginia.gov/", "Sole Proprietorship": "https://www.scc.virginia.gov/pages/Fictitious-Names" },
+  Washington: { LLC: "https://ccfs.sos.wa.gov/", "S-Corp": "https://ccfs.sos.wa.gov/", "C-Corp": "https://ccfs.sos.wa.gov/", "Sole Proprietorship": "https://ccfs.sos.wa.gov/" },
+  "West Virginia": { LLC: "https://apps.wv.gov/SOS/BusinessEntitySearch/", "S-Corp": "https://apps.wv.gov/SOS/BusinessEntitySearch/", "C-Corp": "https://apps.wv.gov/SOS/BusinessEntitySearch/", "Sole Proprietorship": "https://apps.wv.gov/SOS/BusinessEntitySearch/" },
+  Wisconsin: { LLC: "https://www.wdfi.org/apps/CorpSearch/Search.aspx", "S-Corp": "https://www.wdfi.org/apps/CorpSearch/Search.aspx", "C-Corp": "https://www.wdfi.org/apps/CorpSearch/Search.aspx", "Sole Proprietorship": "https://www.wdfi.org" },
+  Wyoming: { LLC: "https://wyobiz.wyo.gov/Business/FilingSearch.aspx", "S-Corp": "https://wyobiz.wyo.gov/Business/FilingSearch.aspx", "C-Corp": "https://wyobiz.wyo.gov/Business/FilingSearch.aspx", "Sole Proprietorship": "https://wyobiz.wyo.gov" },
+};
+
+const EIN_URL = "https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online";
+
+function isEntityStep(step: RoadmapStep): boolean {
+  return /register|llc|incorporate|articles|formation|entity|business structure/i.test(step.title + " " + step.id);
+}
+
+function isEINStep(step: RoadmapStep): boolean {
+  return /ein|employer identification|tax id/i.test(step.title + " " + step.id);
+}
+
+function resolveActionUrl(step: RoadmapStep, businessState?: string, businessStructure?: string): string | undefined {
+  if (isEINStep(step)) return EIN_URL;
+  if (isEntityStep(step) && businessState && businessStructure) {
+    const stateUrls = SOS_URLS[businessState];
+    if (stateUrls) return stateUrls[businessStructure] ?? stateUrls["LLC"];
+  }
+  return step.actionUrl;
+}
+
 interface RoadmapTimelineProps {
   steps: RoadmapStep[];
   accentColor?: string;
@@ -11,6 +84,7 @@ interface RoadmapTimelineProps {
   selectedBusinessStructure?: string;
   onBusinessStructureChange?: (value: string) => void;
   businessStructureOptions?: string[];
+  businessState?: string;
 }
 
 // Group steps by phase
@@ -34,6 +108,7 @@ export default function RoadmapTimeline({
   selectedBusinessStructure,
   onBusinessStructureChange,
   businessStructureOptions,
+  businessState,
 }: RoadmapTimelineProps) {
   // Track which steps the user has checked off (persisted to localStorage)
   const [completed, setCompleted] = useState<Set<string>>(() => {
@@ -288,22 +363,31 @@ export default function RoadmapTimeline({
 
                           {/* Action buttons */}
                           <div className="flex flex-wrap gap-2 pt-1">
-                            {step.actionUrl && (
-                              <a
-                                href={step.actionUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white transition-colors"
-                                style={{ backgroundColor: accentColor }}
-                              >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-                                  <path d="M15 3h6v6" />
-                                  <path d="M10 14L21 3" />
-                                </svg>
-                                Go to site
-                              </a>
-                            )}
+                            {(() => {
+                              const url = resolveActionUrl(step, businessState, selectedBusinessStructure);
+                              if (!url) return null;
+                              const label = isEntityStep(step)
+                                ? `File ${selectedBusinessStructure ?? "LLC"} →`
+                                : isEINStep(step)
+                                  ? "Apply for EIN →"
+                                  : "Go to site";
+                              return (
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white transition-colors"
+                                  style={{ backgroundColor: accentColor }}
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                                    <path d="M15 3h6v6" />
+                                    <path d="M10 14L21 3" />
+                                  </svg>
+                                  {label}
+                                </a>
+                              );
+                            })()}
                             <button
                               type="button"
                               onClick={() => toggleComplete(step.id)}

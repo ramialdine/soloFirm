@@ -3,15 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "next dev",
+    "dev:full:web": "NEXT_DIST_DIR=.next-full next dev -p 3003",
     "dev:test:web": "NEXT_DIST_DIR=.next-devtest next dev -p 3002",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "automation": "tsx automation-server/index.ts",
-    "automation:test": "AUTOMATION_TEST_MODE=true tsx automation-server/index.ts",
-    "dev:full": "concurrently \"npm run dev\" \"npm run automation\"",
-    "dev:test": "concurrently \"npm run dev:test:web\" \"npm run automation:test\""
+    "automation": "AUTOMATION_PORT=3001 tsx automation-server/index.ts",
+    "automation:test": "AUTOMATION_PORT=3099 AUTOMATION_TEST_MODE=true tsx automation-server/index.ts",
+    "dev:full": "concurrently \"AUTOMATION_SERVER_URL=http://localhost:3001 npm run dev:full:web\" \"npm run automation\"",
+    "dev:test": "concurrently \"AUTOMATION_SERVER_URL=http://localhost:3099 npm run dev:test:web\" \"npm run automation:test\""
   },
   "dependencies": {
     "@browserbasehq/stagehand": "^3.2.0",

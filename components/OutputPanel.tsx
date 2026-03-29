@@ -203,6 +203,7 @@ export function PackagingPanel({
   onFinalize,
   runId,
   saving,
+  businessLocation,
 }: PackagingPanelProps) {
   const { brandTheme } = presentation;
   const [logoLoading, setLogoLoading] = useState(false);
@@ -307,6 +308,10 @@ export function PackagingPanel({
               onPresentationChange({ ...presentation, selectedBusinessStructure: value })
             }
             businessStructureOptions={["LLC", "S-Corp", "C-Corp", "Sole Proprietorship", "Not sure"]}
+            businessState={businessLocation}
+            onViewAgent={(agentId) => {
+              if (runId) window.open(`/results/${runId}#agent-card-${agentId}`, "_blank");
+            }}
           />
         </div>
       )}
@@ -414,58 +419,28 @@ export function PackagingPanel({
         </div>
       )}
 
-      {/* ── AI Logo ── */}
+      {/* ── Logo ── */}
       <div className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-zinc-800">AI Logo</h3>
+            <h3 className="text-sm font-semibold text-zinc-800">Logo</h3>
             <p className="text-xs text-zinc-500 mt-1">
-              {canGenerateLogo
-                ? "Generate a logo using your brand identity."
-                : "Set your business name above to unlock logo generation."}
+              Use Canva&apos;s free logo generator — plug in your brand colors and name from the Brand Package above.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={generateLogo}
-            disabled={logoLoading || !canGenerateLogo}
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          <a
+            href="https://www.canva.com/create/logos/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-700 transition-colors"
           >
-            {logoLoading ? "Generating..." : currentLogoSvg ? "Regenerate Logo" : "Generate AI Logo"}
-          </button>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+              <path d="M15 3h6v6M10 14L21 3" />
+            </svg>
+            Create on Canva →
+          </a>
         </div>
-
-        {logoError && (
-          <p className="mt-2 text-xs text-amber-700">{logoError}</p>
-        )}
-
-        {presentation.brandTemplate?.logoSvg ? (
-          <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Logo preview</p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setLogoModalOpen(true)}
-                  className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:text-zinc-900"
-                >
-                  Open
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDownloadSvg}
-                  className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:text-zinc-900"
-                >
-                  Download SVG
-                </button>
-              </div>
-            </div>
-            <div
-              className="[&>svg]:h-24 [&>svg]:w-auto"
-              dangerouslySetInnerHTML={{ __html: presentation.brandTemplate.logoSvg }}
-            />
-          </div>
-        ) : null}
       </div>
 
       {/* ── Save bar ── */}
