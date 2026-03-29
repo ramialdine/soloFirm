@@ -1,22 +1,25 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
-import Link from "next/link";
-import type { Run, AgentId } from "@/types/agents";
+import { getRun } from "@/lib/get-run";
+import type { AgentId } from "@/types/agents";
 import { AGENT_META } from "@/types/agents";
-import { MarkdownBody, ResultsPresentation } from "@/components/OutputPanel";
+import { MarkdownBody } from "@/components/OutputPanel";
+import { SummaryCard } from "@/components/AgentCard";
 
-async function getRun(id: string): Promise<Run | null> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
-  const sb = createClient(url, key);
-  const { data } = await sb.from("runs").select("*").eq("id", id).single();
-  return data as Run | null;
-}
+const AGENT_IDS: AgentId[] = [
+  "planner",
+  "research",
+  "legal",
+  "finance",
+  "brand",
+  "social",
+  "critic",
+];
 
-const AGENT_IDS: AgentId[] = ["planner", "research", "legal", "finance", "brand", "social", "critic"];
-
-export default async function ResultsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ResultsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const run = await getRun(id);
 
@@ -26,73 +29,121 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
 
   const hasPresentation = run.presentation && run.presentation.businessName;
 
+  if (!hasPresentation) {
+    // Legacy fallback: no presentation data — show raw agent outputs
+    return (
+      <div className="space-y-6">
+        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <h1 className="text-2xl font-bold text-zinc-900">{run.domain}</h1>
+          <p className="mt-1 text-sm text-zinc-500">{run.task}</p>
+        </div>
+
+        <div>
+          <h2 className="mb-3 text-sm font-medium text-zinc-700">
+            Launch Package
+          </h2>
+          <div className="space-y-3">
+            {AGENT_IDS.map((agentId) => {
+              const output = run.agent_outputs?.[agentId];
+              if (!output?.content) return null;
+              const meta = AGENT_META[agentId];
+              return (
+                <details
+                  key={agentId}
+                  className="rounded-xl border border-zinc-200 bg-white shadow-sm group"
+                  open={agentId === "planner"}
+                >
+                  <summary className="flex cursor-pointer items-center justify-between p-5 list-none">
+                    <div>
+                      <span className="font-semibold text-zinc-900">
+                        {meta.label}
+                      </span>
+                      <span className="ml-2 text-sm text-zinc-400">
+                        -- {meta.deliverable}
+                      </span>
+                    </div>
+                    <span className="text-zinc-400 text-sm group-open:rotate-180 transition-transform">
+                      {"\u25BC"}
+                    </span>
+                  </summary>
+                  <div className="border-t border-zinc-100 px-6 py-5">
+                    <MarkdownBody content={output.content} />
+                  </div>
+                </details>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Presentation view: agent summary cards
+  const presentation = run.presentation!;
+  const { brandTheme } = presentation;
+  const fontUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(brandTheme.fontFamily)}:wght@400;600;700;800&display=swap`;
+
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <nav className="border-b border-zinc-200 bg-white px-6 py-4">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <Link href="/" className="text-xl font-bold tracking-tight text-zinc-900">SoloFirm</Link>
-          <Link href="/dashboard" className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700">
-            Launch Your Business
-          </Link>
+    <div className="space-y-6">
+      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+      <link rel="stylesheet" href={fontUrl} />
+
+      {/* Brand identity header */}
+      <div
+        className="relative overflow-hidden rounded-2xl border border-zinc-200 shadow-sm"
+        style={{
+          background: `linear-gradient(135deg, ${brandTheme.primaryColor}08 0%, ${brandTheme.accentColor}12 100%)`,
+          fontFamily: `'${brandTheme.fontFamily}', sans-serif`,
+        }}
+      >
+        <div className="px-6 py-8 sm:px-8">
+          <h1
+            className="text-3xl sm:text-4xl font-bold text-zinc-900"
+            style={{ fontFamily: `'${brandTheme.fontFamily}', sans-serif` }}
+          >
+            {presentation.businessName}
+          </h1>
+          <p className="mt-2 text-lg text-zinc-500">{presentation.tagline}</p>
+          <div className="mt-5 flex items-center gap-2">
+            {(["primaryColor", "secondaryColor", "accentColor"] as const).map(
+              (key) => (
+                <div
+                  key={key}
+                  className="h-5 w-5 rounded-full ring-2 ring-white shadow-sm"
+                  style={{ backgroundColor: brandTheme[key] }}
+                />
+              )
+            )}
+            <span className="ml-2 text-xs text-zinc-400">
+              {brandTheme.fontFamily}
+            </span>
+          </div>
         </div>
-      </nav>
+      </div>
 
-      <div className="mx-auto max-w-5xl space-y-8 p-6">
-        {/* Status badge + date */}
-        <div className="flex flex-wrap items-center gap-3">
-          <span className={`rounded-full px-3 py-1 text-xs font-medium ${
-            run.status === "complete" ? "bg-emerald-100 text-emerald-700"
-              : run.status === "partial" ? "bg-amber-100 text-amber-700"
-              : "bg-red-100 text-red-700"
-          }`}>
-            {run.status}
-          </span>
-          <span className="text-xs text-zinc-400">
-            {new Date(run.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
-          </span>
-        </div>
-
-        {/* Branded presentation view (if available) */}
-        {hasPresentation ? (
-          <ResultsPresentation
-            presentation={run.presentation!}
-            outputs={run.agent_outputs}
-          />
-        ) : (
-          <>
-            {/* Fallback: legacy header */}
-            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h1 className="text-2xl font-bold text-zinc-900">{run.domain}</h1>
-              <p className="mt-1 text-sm text-zinc-500">{run.task}</p>
-            </div>
-
-            {/* Legacy agent deliverables */}
-            <div>
-              <h2 className="mb-3 text-sm font-medium text-zinc-700">Launch Package</h2>
-              <div className="space-y-3">
-                {AGENT_IDS.map((agentId) => {
-                  const output = run.agent_outputs?.[agentId];
-                  if (!output?.content) return null;
-                  const meta = AGENT_META[agentId];
-                  return (
-                    <details key={agentId} className="rounded-xl border border-zinc-200 bg-white shadow-sm group" open={agentId === "planner"}>
-                      <summary className="flex cursor-pointer items-center justify-between p-5 list-none">
-                        <div>
-                          <span className="font-semibold text-zinc-900">{meta.label}</span>
-                          <span className="ml-2 text-sm text-zinc-400">-- {meta.deliverable}</span>
-                        </div>
-                        <span className="text-zinc-400 text-sm group-open:rotate-180 transition-transform">{"\u25BC"}</span>
-                      </summary>
-                      <div className="border-t border-zinc-100 px-6 py-5">
-                        <MarkdownBody content={output.content} />
-                      </div>
-                    </details>
-                  );
-                })}
+      {/* Agent summary cards */}
+      <div>
+        <h2 className="mb-4 text-sm font-semibold text-zinc-700 uppercase tracking-wide">
+          Agent Deliverables
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {AGENT_IDS.map((id) => {
+            const summary = presentation.agentSummaries.find(
+              (s) => s.agentId === id
+            );
+            if (!summary || !run.agent_outputs[id]?.content) return null;
+            return (
+              <div key={id} id={`agent-card-${id}`}>
+                <SummaryCard
+                  agentId={id}
+                  summary={summary}
+                  content={run.agent_outputs[id].content}
+                  brandTheme={brandTheme}
+                />
               </div>
-            </div>
-          </>
-        )}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

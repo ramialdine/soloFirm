@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import AgentCard from "./AgentCard";
 import OutputPanel, { PackagingPanel } from "./OutputPanel";
 import { MarkdownBody } from "./OutputPanel";
@@ -158,6 +160,7 @@ function QuestionCard({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function AgentOrchestrator() {
+  const router = useRouter();
   const [step, setStep] = useState<Step>("intake");
 
   // Intake form
@@ -593,7 +596,8 @@ export default function AgentOrchestrator() {
       });
     } catch { /* best-effort */ }
     setSaving(false);
-    setStep("complete");
+    // Navigate to the roadmap results page (the new tabbed interface)
+    router.push(`/results/${runId}/roadmap`);
   };
 
   const phaseLabels = ["Waiting", "Research", "Legal · Finance", "Brand", "Social Media", "Planning", "Review"];
@@ -1067,52 +1071,77 @@ export default function AgentOrchestrator() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setStep("packaging")}
-              className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:border-zinc-300 transition-colors text-left"
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-zinc-900">Back to 90-Day Roadmap</p>
-                <p className="text-xs text-zinc-500">Track progress and check off steps</p>
-              </div>
-            </button>
+            {runId ? (
+              <>
+                <Link
+                  href={`/results/${runId}/roadmap`}
+                  className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:border-zinc-300 transition-colors text-left"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">View 90-Day Roadmap</p>
+                    <p className="text-xs text-zinc-500">Track progress and check off steps</p>
+                  </div>
+                </Link>
 
-            <button
-              type="button"
-              onClick={() => setStep("packaging")}
-              className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:border-zinc-300 transition-colors text-left"
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-zinc-900">View Full Agent Outputs</p>
-                <p className="text-xs text-zinc-500">All 7 agent reports in detail</p>
-              </div>
-            </button>
+                <Link
+                  href={`/results/${runId}`}
+                  className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:border-zinc-300 transition-colors text-left"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">View Agent Outputs</p>
+                    <p className="text-xs text-zinc-500">All 7 agent reports in detail</p>
+                  </div>
+                </Link>
 
-            {runId && (
+                <Link
+                  href={`/results/${runId}/plan`}
+                  className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:border-zinc-300 transition-colors text-left"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#71717a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 6h16M4 12h16M4 18h10"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">Full 90-Day Plan</p>
+                    <p className="text-xs text-zinc-500">Complete readable plan document</p>
+                  </div>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(`${window.location.origin}/results/${runId}`)}
+                  className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:border-zinc-300 transition-colors text-left"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#71717a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">Copy Shareable Link</p>
+                    <p className="text-xs text-zinc-500">Share your launch package with others</p>
+                  </div>
+                </button>
+              </>
+            ) : (
               <button
                 type="button"
-                onClick={() => navigator.clipboard.writeText(`${window.location.origin}/results/${runId}`)}
+                onClick={() => setStep("packaging")}
                 className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:border-zinc-300 transition-colors text-left"
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#71717a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-                  </svg>
-                </div>
                 <div>
-                  <p className="text-sm font-semibold text-zinc-900">Copy Shareable Link</p>
-                  <p className="text-xs text-zinc-500">Share your launch package with others</p>
+                  <p className="text-sm font-semibold text-zinc-900">Back to Roadmap</p>
                 </div>
               </button>
             )}
