@@ -60,6 +60,21 @@ const SOS_URLS: Record<string, Record<string, string>> = {
 
 const EIN_URL = "https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online";
 
+const STATE_NAMES = Object.keys(SOS_URLS);
+
+/** Extract the US state name from a location string like "Providence, Rhode Island" or "Austin, TX". */
+function extractState(location?: string): string | undefined {
+  if (!location) return undefined;
+  // Direct match (location IS a state name)
+  if (SOS_URLS[location]) return location;
+  // Check if any state name appears in the location string (longest match first to prefer "New Hampshire" over "New")
+  const sorted = STATE_NAMES.sort((a, b) => b.length - a.length);
+  for (const state of sorted) {
+    if (location.toLowerCase().includes(state.toLowerCase())) return state;
+  }
+  return undefined;
+}
+
 function isEntityStep(step: RoadmapStep): boolean {
   return /register.*business|file.*llc|incorporate|articles.*organization|business formation|\bentity\b|business structure/i.test(step.title + " " + step.id);
 }
@@ -71,7 +86,8 @@ function isEINStep(step: RoadmapStep): boolean {
 function resolveActionUrl(step: RoadmapStep, businessState?: string, businessStructure?: string): string | undefined {
   if (isEINStep(step)) return EIN_URL;
   if (isEntityStep(step) && businessState && businessStructure) {
-    const stateUrls = SOS_URLS[businessState];
+    const resolved = extractState(businessState);
+    const stateUrls = resolved ? SOS_URLS[resolved] : undefined;
     if (stateUrls) return stateUrls[businessStructure] ?? stateUrls["LLC"];
   }
   return step.actionUrl;
