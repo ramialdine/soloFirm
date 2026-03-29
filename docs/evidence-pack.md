@@ -12,6 +12,8 @@ Use this file as the final judge-facing validation list.
 - [x] Interactive plan page with task checkboxes, progress bar, and localStorage persistence
 - [x] Pre-run brand selection (name, accent color, font) before agents execute
 - [x] Client-side sessionStorage fallback prevents 404 on all result pages
+- [x] LLC PDF form pre-filling for Rhode Island (download button on entity formation roadmap steps)
+- [x] Secretary of State filing links for all 50 states on entity formation steps
 
 ## B) Execution proof
 

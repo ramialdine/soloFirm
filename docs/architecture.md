@@ -192,3 +192,14 @@ Migration triggers:
 
 - Move to queue-backed workers when concurrent runs > 25 **or** p95 SSE latency > 2.5s.
 - Move to event-bus architecture when concurrent runs > 400 **or** queue wait time > 60s.
+
+### SSE resumability (100-user tier)
+
+At the 100-user tier, SSE reconnection is handled via Redis-backed event checkpoints:
+
+1. Each emitted SSE event includes a `seq` field (monotonic per run).
+2. Events are stored in a Redis sorted set (`sse:run:{runId}`, score = `seq`, TTL = 2h).
+3. On reconnection, the client sends `Last-Event-ID: {runId}:{seq}`, and the API replays missed events from Redis before resuming live emission.
+4. On `run_complete`, the sorted set is garbage-collected after a 10-minute grace period.
+
+This adds zero latency to the happy path (Redis `ZADD` is fire-and-forget) and requires no client-side changes beyond the native `EventSource` `Last-Event-ID` behavior. Full design details in [masterPlan.md](../masterPlan.md#102-sse-resumability-design-100-user-tier).

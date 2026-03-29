@@ -30,6 +30,13 @@ This document maps judging dimensions to concrete, repo-local evidence.
 - Run retrieval/export endpoints: [app/api/runs/[id]/route.ts](../app/api/runs/[id]/route.ts), [app/api/runs/export/route.ts](../app/api/runs/export/route.ts)
 - Webhook contract endpoint: [app/api/webhooks/run-complete/route.ts](../app/api/webhooks/run-complete/route.ts)
 
+## 5.5) LLC form filling and state filing links
+
+- PDF form pre-fill implementation: [lib/pdf/fillRiArticles.ts](../lib/pdf/fillRiArticles.ts)
+- PDF API endpoint: [app/api/docs/fill-pdf/route.ts](../app/api/docs/fill-pdf/route.ts)
+- Secretary of State URLs (all 50 states): [components/RoadmapTimeline.tsx](../components/RoadmapTimeline.tsx) (lines 8-59)
+- Roadmap integration passing location/name/teamSize: [app/results/[id]/roadmap/roadmap-client.tsx](../app/results/[id]/roadmap/roadmap-client.tsx)
+
 ## 6) Reliability and resilience
 
 - Controlled failure + graceful behavior proof: [docs/evidence/reliability-check.json](evidence/reliability-check.json)

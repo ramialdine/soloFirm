@@ -15,6 +15,20 @@
 	- If `RUNS_API_KEY` is set, callers must pass `Authorization: Bearer <RUNS_API_KEY>`.
 	- If unset, endpoints are open for local/dev usage.
 
+## Developer onboarding (quick start for partners)
+
+To integrate with SoloFirm as a third-party developer (e.g., incubator dashboard, advisor tool):
+
+1. **Obtain an API key**: request `RUNS_API_KEY` from the SoloFirm admin.
+2. **Set the auth header**: include `Authorization: Bearer <your-key>` on all `/api/runs/*` requests.
+3. **Make your first call**:
+   ```bash
+   curl -H "Authorization: Bearer YOUR_KEY" \
+     https://your-solofirm-host/api/runs/export?limit=5&format=json
+   ```
+4. **Parse the response**: each run object includes `presentation.roadmap` (step-level task data), `presentation.businessName`, `agent_outputs` (per-agent markdown), and timing fields for TLR computation.
+5. **Set up webhooks** (optional): configure `RUN_COMPLETE_WEBHOOK_URLS` to receive real-time notifications when runs complete. Verify payloads with `x-solofirm-signature` HMAC (see Outbound webhook delivery section below).
+
 ## Versioning and rate limits
 
 - Versioning: current version is implicit `v1` (path-stable for this hackathon).
@@ -41,6 +55,38 @@ Response:
 - Round 2 follow-up: `{ ready: false, questions: [...] }`
 - Finalize: `{ plan: string }`
 
+Example request (round 1):
+
+```json
+{
+  "intake": {
+    "businessIdea": "Mobile dog grooming service",
+    "location": "Austin, Texas",
+    "budgetRange": "$5,000-$10,000",
+    "entityPreference": "LLC",
+    "teamSize": "Solo"
+  },
+  "round": 1
+}
+```
+
+Example response (round 1):
+
+```json
+{
+  "questions": [
+    {
+      "question": "How will you primarily reach dog owners in Austin for your mobile grooming service?",
+      "options": ["Instagram and local Facebook groups", "Nextdoor and neighborhood flyers", "Partnerships with local vets and pet stores"]
+    },
+    {
+      "question": "What is your pricing strategy for mobile dog grooming in the Austin market?",
+      "options": ["Premium pricing ($80-120 per session)", "Mid-range competitive ($50-80 per session)", "Volume-based with package discounts"]
+    }
+  ]
+}
+```
+
 Status codes:
 
 - `200` success
@@ -63,6 +109,40 @@ Request body:
 Response:
 
 - `text/event-stream` with typed `SSEEvent` entries.
+
+Example request:
+
+```json
+{
+  "businessIdea": "Mobile dog grooming service",
+  "location": "Austin, Texas",
+  "budgetRange": "$5,000-$10,000",
+  "entityPreference": "LLC",
+  "teamSize": "Solo",
+  "planSummary": "Launch a premium mobile dog grooming service...",
+  "selectedBusinessName": "Paws & Go",
+  "selectedAccentColor": "#10b981",
+  "selectedFontFamily": "Inter"
+}
+```
+
+Example SSE stream (abbreviated):
+
+```
+data: {"type":"run_started","run":{"id":"abc-123","status":"running"},"timestamp":"2026-03-29T18:16:32.867Z"}
+
+data: {"type":"agent_started","agentId":"planner","timestamp":"2026-03-29T18:16:33.000Z"}
+
+data: {"type":"agent_chunk","agentId":"planner","content":"## 90-Day Business Launch Roadmap...","timestamp":"2026-03-29T18:16:34.000Z"}
+
+data: {"type":"agent_complete","agentId":"planner","timestamp":"2026-03-29T18:17:05.000Z"}
+
+data: {"type":"phase_complete","phase":1,"timestamp":"2026-03-29T18:17:05.100Z"}
+
+data: {"type":"synthesis_complete","presentation":{...},"timestamp":"2026-03-29T18:20:15.000Z"}
+
+data: {"type":"run_complete","run":{"id":"abc-123","status":"complete","presentation":{...}},"timestamp":"2026-03-29T18:20:16.000Z"}
+```
 
 Status codes:
 
@@ -161,6 +241,31 @@ Status codes:
 - `404` run not found in both Supabase and local fallback
 - `500` unexpected server error with no fallback hit
 
+Example request:
+
+```bash
+curl -H "Authorization: Bearer <RUNS_API_KEY>" \
+  https://localhost:3000/api/runs/d9b34965-3355-4d0d-aaa4-5e8fa1982371
+```
+
+Example response:
+
+```json
+{
+  "run": {
+    "id": "d9b34965-3355-4d0d-aaa4-5e8fa1982371",
+    "domain": "Mobile dog grooming service",
+    "task": "Launch a premium mobile dog grooming service in Austin...",
+    "status": "complete",
+    "agent_outputs": { "planner": { "agentId": "planner", "status": "complete", "content": "..." }, "...": "..." },
+    "final_output": "## 90-Day Business Launch Roadmap...",
+    "presentation": { "businessName": "Paws & Go", "roadmap": [...], "brandTheme": {...} },
+    "created_at": "2026-03-29T18:16:32.867Z",
+    "completed_at": "2026-03-29T18:20:16.000Z"
+  }
+}
+```
+
 Implementation: [app/api/runs/[id]/route.ts](../app/api/runs/[id]/route.ts)
 
 ### GET /api/runs/export
@@ -186,6 +291,40 @@ Status codes:
 - `200` success (`json` response or `text/csv` download)
 - `401` invalid/missing bearer token when `RUNS_API_KEY` is configured
 - `500` unexpected export error (rare; fallback path should still return `200` in most cases)
+
+Example request:
+
+```bash
+curl -H "Authorization: Bearer <RUNS_API_KEY>" \
+  "https://localhost:3000/api/runs/export?limit=2&format=json"
+```
+
+Example response:
+
+```json
+{
+  "exportedAt": "2026-03-29T19:00:00.000Z",
+  "count": 2,
+  "runs": [
+    {
+      "id": "d9b34965-...",
+      "domain": "Mobile dog grooming service",
+      "status": "complete",
+      "created_at": "2026-03-29T18:16:32.867Z",
+      "completed_at": "2026-03-29T18:20:16.000Z",
+      "presentation": { "businessName": "Paws & Go", "roadmap": [...] }
+    },
+    {
+      "id": "a1c2e3f4-...",
+      "domain": "Online tutoring platform",
+      "status": "complete",
+      "created_at": "2026-03-29T17:00:00.000Z",
+      "completed_at": "2026-03-29T17:05:30.000Z",
+      "presentation": { "businessName": "BrightPath", "roadmap": [...] }
+    }
+  ]
+}
+```
 
 Implementation: [app/api/runs/export/route.ts](../app/api/runs/export/route.ts)
 
@@ -351,6 +490,20 @@ Status codes:
 - `200` success
 - `400` missing fields or unsupported state
 - `500` PDF generation failure
+
+Example request:
+
+```json
+{
+  "businessName": "Paws & Go LLC",
+  "state": "Rhode Island",
+  "teamSize": "Solo"
+}
+```
+
+Example response: `200 OK` with `Content-Type: application/pdf` and `Content-Disposition: attachment; filename="Paws-Go-LLC-Articles-of-Organization.pdf"`.
+
+Currently supported states for PDF form filling: **Rhode Island**. Other states return `400` with an explanatory error message. The roadmap provides direct Secretary of State filing links for all 50 states regardless of PDF support.
 
 Implementation: [app/api/docs/fill-pdf/route.ts](../app/api/docs/fill-pdf/route.ts)
 

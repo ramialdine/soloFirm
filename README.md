@@ -43,7 +43,24 @@ Optional but recommended for automation features:
 - `WEBHOOK_SIGNING_SECRET` (optional HMAC signing secret for outbound webhooks)
 - Google OAuth credentials (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_SECRET`)
 
-### 3) Run modes
+### 3) Verify environment
+
+After configuring `.env.local`, verify your setup:
+
+```bash
+# Check that Next.js starts without errors
+npm run dev
+
+# In another terminal, verify the API is responsive
+curl http://localhost:3000/api/automation/health
+
+# If using Supabase, verify connectivity
+curl http://localhost:3000/api/runs/export?limit=1
+```
+
+If `automation/health` returns `{ "ok": false }`, ensure the sidecar is running (`npm run automation`).
+
+### 4) Run modes
 
 - Web only:
 
