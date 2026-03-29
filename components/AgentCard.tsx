@@ -28,6 +28,7 @@ const AGENT_PHOTOS: Partial<Record<AgentId, string>> = {
   finance: "/agent-finance.png",
   brand: "/agent-brand.png",
   social: "/agent-social.png",
+  critic: "/agent-critic.svg",
 };
 
 // ── Compact card for the "running" phase (same as before but cleaner) ──

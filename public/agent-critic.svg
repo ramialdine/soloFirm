@@ -1,0 +1,40 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="24" y1="24" x2="232" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#1E293B"/>
+    </linearGradient>
+    <linearGradient id="hat" x1="64" y1="44" x2="192" y2="92" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#334155"/>
+      <stop offset="1" stop-color="#0F172A"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="240" height="240" rx="48" fill="url(#bg)"/>
+
+  <!-- detective hat -->
+  <path d="M70 88C70 66 88 48 110 48H146C168 48 186 66 186 88V94H70V88Z" fill="url(#hat)"/>
+  <rect x="54" y="90" width="148" height="18" rx="9" fill="#0B1220"/>
+
+  <!-- face -->
+  <ellipse cx="128" cy="142" rx="52" ry="48" fill="#E2E8F0"/>
+
+  <!-- glasses -->
+  <circle cx="108" cy="138" r="14" stroke="#0F172A" stroke-width="6"/>
+  <circle cx="148" cy="138" r="14" stroke="#0F172A" stroke-width="6"/>
+  <rect x="122" y="134" width="12" height="6" rx="3" fill="#0F172A"/>
+
+  <!-- eyes -->
+  <circle cx="108" cy="138" r="4" fill="#0F172A"/>
+  <circle cx="148" cy="138" r="4" fill="#0F172A"/>
+
+  <!-- mustache -->
+  <path d="M104 164C112 156 120 156 128 164C136 156 144 156 152 164" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- collar -->
+  <path d="M92 188L120 168L128 176L136 168L164 188" fill="#94A3B8"/>
+
+  <!-- badge accent -->
+  <circle cx="188" cy="198" r="18" fill="#10B981"/>
+  <path d="M188 189L190.8 195.2L197.6 196L192.4 200.8L193.8 207.6L188 204.2L182.2 207.6L183.6 200.8L178.4 196L185.2 195.2L188 189Z" fill="white"/>
+</svg>

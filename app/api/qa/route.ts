@@ -47,6 +47,45 @@ function extractJSON(raw: string): Record<string, unknown> | null {
   return null;
 }
 
+async function requestStructuredQA(
+  openai: ReturnType<typeof getOpenAI>,
+  systemPrompt: string,
+  userMessage: string
+): Promise<{ parsed: Record<string, unknown> | null; attempts: number }> {
+  const first = await openai.chat.completions.create({
+    model: CHAT_MODEL,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage },
+    ],
+    max_tokens: 1024,
+  });
+
+  const firstRaw = first.choices?.[0]?.message?.content ?? "";
+  const firstParsed = extractJSON(firstRaw);
+  if (firstParsed) {
+    return { parsed: firstParsed, attempts: 1 };
+  }
+
+  console.warn("Q&A: first JSON parse failed, retrying with stricter instruction");
+
+  const second = await openai.chat.completions.create({
+    model: CHAT_MODEL,
+    messages: [
+      { role: "system", content: systemPrompt },
+      {
+        role: "user",
+        content: `${userMessage}\n\nYour last response was invalid. Return ONLY one valid JSON object that matches the required schema. No markdown, no commentary.`,
+      },
+    ],
+    max_tokens: 1024,
+  });
+
+  const secondRaw = second.choices?.[0]?.message?.content ?? "";
+  const secondParsed = extractJSON(secondRaw);
+  return { parsed: secondParsed, attempts: 2 };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as {
@@ -65,12 +104,14 @@ export async function POST(req: NextRequest) {
     if (AI_TEST_MODE) {
       if (finalize) {
         return Response.json({
+          _meta: { source: "test", mode: "ai_test_mode" },
           plan: `## Business Overview\n${intake.businessIdea} is positioned for a fast, low-friction launch in ${intake.location}.\n\n## Target Market\nEarly adopters with high urgency and clear willingness to pay.\n\n## Revenue & Pricing Model\nSimple starter package + premium upsell path.\n\n## Competitive Positioning\nFaster execution and clearer onboarding than local alternatives.\n\n## Key Risks\nExecution consistency, channel fit, and cash discipline.\n\n## First 90 Days — Priorities\n1) Validate demand, 2) Formalize entity + banking, 3) Launch offer and acquisition loop.`,
         });
       }
 
       if (round === 1) {
         return Response.json({
+          _meta: { source: "test", mode: "ai_test_mode" },
           questions: [
             {
               question: "Which business name direction do you prefer?",
@@ -89,6 +130,7 @@ export async function POST(req: NextRequest) {
       }
 
       return Response.json({
+        _meta: { source: "test", mode: "ai_test_mode" },
         ready: true,
         message: "Great choices — we have enough data to build your launch package.",
       });
@@ -117,22 +159,13 @@ export async function POST(req: NextRequest) {
     // Append a reminder to the user message so models that ignore system prompts still output JSON
     const userMessage = `${context}\n\nIMPORTANT: Respond with ONLY a raw JSON object (no markdown, no backticks, no explanation). Follow the exact schema in your instructions.`;
 
-    const response = await openai.chat.completions.create({
-      model: CHAT_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
-      ],
-      max_tokens: 1024,
-    });
-
-    const raw = response.choices?.[0]?.message?.content ?? "";
-    const parsed = extractJSON(raw);
+    const { parsed, attempts } = await requestStructuredQA(openai, systemPrompt, userMessage);
 
     if (!parsed) {
-      console.error("Q&A: failed to parse JSON from model response:", raw.slice(0, 300));
+      console.error("Q&A: failed to parse JSON from model response after retries");
       // Return a safe fallback instead of crashing
       return Response.json({
+        _meta: { source: "fallback", reason: "parse_failed", attempts },
         questions: [
           {
             question: "How do you plan to primarily reach your first customers?",
@@ -165,24 +198,37 @@ export async function POST(req: NextRequest) {
     if (round === 2) {
       if (parsed.ready === true) {
         return Response.json({
+          _meta: { source: "ai", attempts },
           ready: true,
           message: parsed.message ?? "I have everything I need to build your plan!",
         });
       }
       const questions = Array.isArray(parsed.questions) ? parsed.questions : [];
       if (questions.length === 0) {
-        return Response.json({ ready: true, message: "Perfect — building your plan now!" });
+        return Response.json({
+          _meta: { source: "ai", attempts },
+          ready: true,
+          message: "Perfect — building your plan now!",
+        });
       }
-      return Response.json({ ready: false, questions: questions.slice(0, 2) });
+      return Response.json({
+        _meta: { source: "ai", attempts },
+        ready: false,
+        questions: questions.slice(0, 2),
+      });
     }
 
     // Round 1
     const questions = Array.isArray(parsed.questions) ? parsed.questions : [];
-    return Response.json({ questions: questions.slice(0, 4) });
+    return Response.json({
+      _meta: { source: "ai", attempts },
+      questions: questions.slice(0, 4),
+    });
   } catch (err) {
     console.error("Q&A route error:", err);
     // Hard fallback — never leave the user stuck
     return Response.json({
+      _meta: { source: "fallback", reason: "route_error" },
       questions: [
         {
           question: "How do you plan to primarily reach your first customers?",

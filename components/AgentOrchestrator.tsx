@@ -19,6 +19,16 @@ import { AGENT_META } from "@/types/agents";
 const AGENT_IDS: AgentId[] = ["planner", "research", "legal", "finance", "brand", "social", "critic"];
 
 type Step = "intake" | "qa" | "running" | "packaging" | "complete";
+type QaSource = "ai" | "fallback" | "test" | "unknown";
+
+interface QaMetaPayload {
+  _meta?: {
+    source?: QaSource;
+    reason?: string;
+    attempts?: number;
+    mode?: string;
+  };
+}
 
 const STAGES = [
   { value: "Solo", label: "Solo founder" },
@@ -170,6 +180,8 @@ export default function AgentOrchestrator() {
   const [qaLoading, setQaLoading] = useState(false);
   const [qaReadyMessage, setQaReadyMessage] = useState("");
   const [planSummary, setPlanSummary] = useState("");
+  const [qaSource, setQaSource] = useState<QaSource>("unknown");
+  const [qaSourceReason, setQaSourceReason] = useState<string>("");
 
   // Agent execution state
   const [outputs, setOutputs] = useState<Record<AgentId, AgentOutput>>(makeInitialOutputs);
@@ -232,6 +244,20 @@ export default function AgentOrchestrator() {
     }));
   }, []);
 
+  const applyQaMeta = useCallback((data: QaMetaPayload) => {
+    const source = data?._meta?.source ?? "unknown";
+    const reason = data?._meta?.reason ?? "";
+    setQaSource(source);
+    setQaSourceReason(reason);
+
+    if (source === "fallback") {
+      console.warn("QA questions are using fallback defaults", data?._meta);
+    }
+    if (source === "test") {
+      console.warn("QA questions are in TEST_MODE mock mode", data?._meta);
+    }
+  }, []);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files ?? []);
     setFiles((prev) => {
@@ -284,6 +310,7 @@ export default function AgentOrchestrator() {
       });
       if (res.ok) {
         const data = await res.json();
+        applyQaMeta(data);
         if (data.ready) {
           setQaReadyMessage(data.message ?? "");
           await finalizePlan([]);
@@ -328,6 +355,7 @@ export default function AgentOrchestrator() {
       });
       if (res.ok) {
         const data = await res.json();
+        applyQaMeta(data);
         // If the API returned ready:true immediately (edge case), skip to finalize
         if (data.ready) {
           setQaReadyMessage(data.message ?? "");
@@ -385,6 +413,7 @@ export default function AgentOrchestrator() {
 
       if (res.ok) {
         const data = await res.json();
+        applyQaMeta(data);
 
         if (data.ready || !data.questions?.length) {
           // AI has enough info → auto-finalize
@@ -780,6 +809,12 @@ export default function AgentOrchestrator() {
                         ? "Click the options that best describe your situation. Choose D to write your own answer."
                         : "A couple more questions to sharpen your plan."}
                 </p>
+                {!planSummary && qaSource !== "unknown" && (
+                  <p className="mt-1 text-xs text-zinc-400">
+                    Question source: {qaSource.toUpperCase()}
+                    {qaSourceReason ? ` (${qaSourceReason.replaceAll("_", " ")})` : ""}
+                  </p>
+                )}
               </div>
               {!planSummary && qaQuestions.length > 0 && (
                 <div className="shrink-0 rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600">
