@@ -7,7 +7,7 @@ export type AutomationStatus =
   | "complete"
   | "error";
 
-export type AutomationPlatform = "gmail" | "instagram";
+export type AutomationPlatform = "gmail" | "instagram" | "facebook" | "twitter" | "tiktok" | "linkedin" | "youtube";
 
 export interface AutomationParams {
   businessName: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import AgentCard from "./AgentCard";
 import OutputPanel, { PackagingPanel } from "./OutputPanel";
 import AutomationPanel from "./AutomationPanel";
@@ -184,6 +184,46 @@ export default function AgentOrchestrator() {
   const [presentation, setPresentation] = useState<Presentation | null>(null);
   const [packagingReady, setPackagingReady] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // ── Persist state across OAuth redirects ──
+  const STORAGE_KEY = "solofirm_run_state";
+
+  // Save state to sessionStorage whenever we're in packaging/complete
+  useEffect(() => {
+    if ((step === "packaging" || step === "complete") && presentation) {
+      const state = {
+        step,
+        intake,
+        outputs,
+        finalOutput,
+        runId,
+        presentation,
+        currentPhase,
+      };
+      try {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch { /* quota exceeded — non-fatal */ }
+    }
+  }, [step, intake, outputs, finalOutput, runId, presentation, currentPhase]);
+
+  // Restore state on mount if available
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const state = JSON.parse(saved);
+        if (state.step === "packaging" || state.step === "complete") {
+          setStep(state.step);
+          setIntake(state.intake);
+          setOutputs(state.outputs);
+          setFinalOutput(state.finalOutput);
+          setRunId(state.runId);
+          setPresentation(state.presentation);
+          setCurrentPhase(state.currentPhase);
+        }
+      }
+    } catch { /* corrupt data — ignore */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateAgent = useCallback((agentId: AgentId, update: Partial<AgentOutput>) => {
     setOutputs((prev) => ({
@@ -505,6 +545,7 @@ export default function AgentOrchestrator() {
     setPresentation(null);
     setPackagingReady(false);
     setSaving(false);
+    try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
   };
 
   const handleFinalize = async () => {

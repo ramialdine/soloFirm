@@ -7,6 +7,7 @@ import type { Presentation, AgentId, AgentOutput } from "@/types/agents";
 import { SummaryCard } from "./AgentCard";
 import { AGENT_META } from "@/types/agents";
 import AccountSetupWizard from "./AccountSetupWizard";
+import RoadmapTimeline from "./RoadmapTimeline";
 
 // ── Legacy tabbed output (still used as a detail view) ──
 
@@ -215,6 +216,16 @@ export function PackagingPanel({
         </div>
       </div>
 
+      {/* Roadmap timeline */}
+      {presentation.roadmap && presentation.roadmap.length > 0 && (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-sm">
+          <RoadmapTimeline
+            steps={presentation.roadmap}
+            accentColor={brandTheme.accentColor}
+          />
+        </div>
+      )}
+
       {/* Agent summary cards */}
       <div>
         <h3 className="mb-3 text-sm font-medium text-zinc-700">Your Launch Package</h3>
@@ -307,6 +318,16 @@ export function ResultsPresentation({ presentation, outputs }: ResultsPresentati
           </div>
         </div>
       </div>
+
+      {/* Roadmap timeline */}
+      {presentation.roadmap && presentation.roadmap.length > 0 && (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-sm">
+          <RoadmapTimeline
+            steps={presentation.roadmap}
+            accentColor={brandTheme.accentColor}
+          />
+        </div>
+      )}
 
       {/* Agent summary cards */}
       <div className="grid gap-4 sm:grid-cols-2">

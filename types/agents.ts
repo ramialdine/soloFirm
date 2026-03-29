@@ -93,6 +93,22 @@ export interface AgentSummary {
   bullets: string[];   // 3-4 key takeaways
 }
 
+export type RoadmapStepStatus = "complete" | "current" | "upcoming";
+
+export interface RoadmapStep {
+  id: string;           // e.g. "register-llc"
+  title: string;        // e.g. "Register Your LLC"
+  week: string;         // e.g. "Week 1-2"
+  phase: string;        // e.g. "Foundation"
+  why: string;          // one-sentence reason it matters
+  prepared: string;     // what's already done for them in the launch package
+  action: string;       // exact next step (e.g. "File at sos.texas.gov — $300 filing fee")
+  actionUrl?: string;   // direct link if applicable
+  agentId?: AgentId;    // which agent's output is relevant
+  estimatedTime?: string; // e.g. "15 minutes", "1-2 days"
+  cost?: string;        // e.g. "$300", "Free"
+}
+
 export interface Presentation {
   businessName: string;
   tagline: string;
@@ -103,6 +119,7 @@ export interface Presentation {
     fontFamily: string;
   };
   agentSummaries: AgentSummary[];
+  roadmap: RoadmapStep[];
 }
 
 // ── Run ──

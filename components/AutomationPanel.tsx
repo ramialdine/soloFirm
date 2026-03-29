@@ -7,11 +7,16 @@ interface AutomationPanelProps {
   businessName: string;
 }
 
-const PLATFORMS: AutomationPlatform[] = ["gmail", "instagram"];
+const PLATFORMS: AutomationPlatform[] = ["gmail", "instagram", "facebook", "twitter", "tiktok", "linkedin", "youtube"];
 
 const PLATFORM_LABELS: Record<AutomationPlatform, string> = {
   gmail: "Gmail",
   instagram: "Instagram",
+  facebook: "Facebook",
+  twitter: "X / Twitter",
+  tiktok: "TikTok",
+  linkedin: "LinkedIn",
+  youtube: "YouTube",
 };
 
 const STATUS_MESSAGES: Partial<Record<AutomationStatus, string>> = {

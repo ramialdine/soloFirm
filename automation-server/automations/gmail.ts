@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { PlatformCredentials } from "../../types/automation";
 
 type EmitFn = (msg: string) => void;
@@ -26,8 +27,7 @@ function generatePassword(): string {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function runGmailSignup(stagehand: any, params: { businessName: string; founderName?: string }, emit: EmitFn, pause: PauseFn): Promise<PlatformCredentials> {
-  const page = stagehand.context.activePage();
+export async function runGmailSignup(stagehand: any, page: any, params: { businessName: string; founderName?: string }, emit: EmitFn, pause: PauseFn): Promise<PlatformCredentials> {
   const password = generatePassword();
   const [firstName, ...lastParts] = (params.founderName ?? params.businessName).split(" ");
   const lastName = lastParts.join(" ") || "Owner";
@@ -39,18 +39,18 @@ export async function runGmailSignup(stagehand: any, params: { businessName: str
   await page.waitForLoadState("networkidle");
 
   emit("Filling in name…");
-  await stagehand.act({ action: `Type "${firstName}" into the First name field` });
-  await stagehand.act({ action: `Type "${lastName}" into the Last name field` });
-  await stagehand.act({ action: "Click Next" });
+  await stagehand.act(`Type "${firstName}" into the First name field`);
+  await stagehand.act(`Type "${lastName}" into the Last name field`);
+  await stagehand.act("Click Next");
   await page.waitForLoadState("networkidle");
 
   emit("Entering birthday and gender…");
   // Month: select August (birth month placeholder)
-  await stagehand.act({ action: "Select August from the Month dropdown" });
-  await stagehand.act({ action: 'Type "15" into the Day field' });
-  await stagehand.act({ action: 'Type "1990" into the Year field' });
-  await stagehand.act({ action: "Select Rather not say from the Gender dropdown" });
-  await stagehand.act({ action: "Click Next" });
+  await stagehand.act("Select August from the Month dropdown");
+  await stagehand.act('Type "15" into the Day field');
+  await stagehand.act('Type "1990" into the Year field');
+  await stagehand.act("Select Rather not say from the Gender dropdown");
+  await stagehand.act("Click Next");
   await page.waitForLoadState("networkidle");
 
   // Try username options
@@ -58,10 +58,10 @@ export async function runGmailSignup(stagehand: any, params: { businessName: str
   let usernameAccepted = false;
   for (const candidate of usernames) {
     try {
-      await stagehand.act({ action: "Click Create your own Gmail address" });
+      await stagehand.act("Click Create your own Gmail address");
       await page.waitForTimeout(500);
-      await stagehand.act({ action: `Clear the username field and type "${candidate}"` });
-      await stagehand.act({ action: "Click Next" });
+      await stagehand.act(`Clear the username field and type "${candidate}"`);
+      await stagehand.act("Click Next");
       await page.waitForLoadState("networkidle");
       // If still on same page with error, try next
       const url = page.url();
@@ -78,17 +78,17 @@ export async function runGmailSignup(stagehand: any, params: { businessName: str
     emit("Could not auto-select a username — please select one in the browser window.");
     await pause("paused_captcha");
     // Re-read what was chosen by looking at the page
-    const val = await stagehand.extract({
-      instruction: "Extract the current value of the Gmail username input field",
-      schema: { type: "object", properties: { username: { type: "string" } }, required: ["username"] },
-    });
+    const val = await stagehand.extract(
+      "Extract the current value of the Gmail username input field",
+      z.object({ username: z.string() }),
+    );
     chosenUsername = (val as { username?: string }).username ?? chosenUsername;
   }
 
   emit("Setting password…");
-  await stagehand.act({ action: `Type "${password}" into the Password field` });
-  await stagehand.act({ action: `Type "${password}" into the Confirm field` });
-  await stagehand.act({ action: "Click Next" });
+  await stagehand.act(`Type "${password}" into the Password field`);
+  await stagehand.act(`Type "${password}" into the Confirm field`);
+  await stagehand.act("Click Next");
   await page.waitForLoadState("networkidle");
 
   // Phone verification
@@ -97,28 +97,28 @@ export async function runGmailSignup(stagehand: any, params: { businessName: str
     emit("Phone verification required — waiting for your phone number…");
     const phone = await pause("paused_phone");
     emit("Entering phone number…");
-    await stagehand.act({ action: `Type "${phone}" into the phone number field` });
-    await stagehand.act({ action: "Click Next" });
+    await stagehand.act(`Type "${phone}" into the phone number field`);
+    await stagehand.act("Click Next");
     await page.waitForLoadState("networkidle");
 
     emit("Waiting for SMS code…");
     const smsCode = await pause("paused_sms");
     emit("Entering SMS code…");
-    await stagehand.act({ action: `Type "${smsCode}" into the verification code field` });
-    await stagehand.act({ action: "Click Verify" });
+    await stagehand.act(`Type "${smsCode}" into the verification code field`);
+    await stagehand.act("Click Verify");
     await page.waitForLoadState("networkidle");
   }
 
   // Recovery email (skip)
   try {
-    await stagehand.act({ action: "Click Skip if there is a Skip button" });
+    await stagehand.act("Click Skip if there is a Skip button");
     await page.waitForTimeout(500);
   } catch { /* optional step */ }
 
   // Accept terms
   try {
     emit("Accepting terms…");
-    await stagehand.act({ action: "Click I agree or Accept" });
+    await stagehand.act("Click I agree or Accept");
     await page.waitForLoadState("networkidle");
   } catch { /* may not appear */ }
 

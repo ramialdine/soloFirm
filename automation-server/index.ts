@@ -31,7 +31,9 @@ interface Session {
   credentials: Partial<Record<AutomationPlatform, PlatformCredentials>>;
   sseClients: express.Response[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  stagehand?: any; // Stagehand instance — kept for screenshot access
+  stagehand?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  page?: any; // Active V3 Page for screenshots and navigation
 }
 
 const sessions = new Map<string, Session>();
@@ -54,11 +56,9 @@ function emitStatus(session: Session, status: AutomationStatus) {
 }
 
 async function captureScreenshot(session: Session) {
-  if (!session.stagehand) return;
+  if (!session.page) return;
   try {
-    const page = session.stagehand.context.activePage();
-    if (!page) return;
-    const buffer = await page.screenshot({ type: "jpeg", quality: 60 });
+    const buffer = await session.page.screenshot({ type: "jpeg", quality: 60 });
     const dataUrl = `data:image/jpeg;base64,${(buffer as Buffer).toString("base64")}`;
     emitSSE(session, { type: "screenshot", screenshotDataUrl: dataUrl, timestamp: new Date().toISOString() });
   } catch { /* page may be navigating */ }
@@ -122,6 +122,10 @@ async function runAutomation(session: Session, params: AutomationParams) {
   await stagehand.init();
   session.stagehand = stagehand;
 
+  // Open the first page explicitly — activePage() is undefined until we do this
+  const page = await stagehand.context.newPage();
+  session.page = page;
+
   // Start screenshot polling
   session.screenshotInterval = setInterval(() => captureScreenshot(session), 2000);
 
@@ -129,6 +133,7 @@ async function runAutomation(session: Session, params: AutomationParams) {
     await runSocialSetup(
       session,
       stagehand,
+      page,
       params,
       (msg) => emitLog(session, msg),
       (s: "paused_phone" | "paused_sms" | "paused_captcha") => pause(session, s),

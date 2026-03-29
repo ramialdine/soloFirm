@@ -37,7 +37,7 @@ const PLATFORMS: PlatformConfig[] = [
     label: "YouTube",
     color: "#FF0000",
     signupUrl: "https://www.youtube.com/create_channel",
-    canAutoCreate: false,
+    canAutoCreate: true,
     supportsGoogleSignIn: true,
     iconPath:
       "M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z",
@@ -276,7 +276,18 @@ function PlatformCard({
               <button
                 type="button"
                 onClick={() => {
-                  window.open(platform.signupUrl, "_blank");
+                  // Copy all fields to clipboard first
+                  const clipText = `Display Name: ${fields.displayName}\nUsername: ${fields.username}\nBio: ${fields.bio}`;
+                  navigator.clipboard.writeText(clipText);
+                  // Open signup in a popup window so user stays on SoloFirm
+                  const w = 600, h = 700;
+                  const left = window.screenX + (window.outerWidth - w) / 2;
+                  const top = window.screenY + (window.outerHeight - h) / 2;
+                  window.open(
+                    platform.signupUrl,
+                    `${platform.id}_signup`,
+                    `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`
+                  );
                   onStatusChange("in-progress");
                 }}
                 disabled={account.status === "created"}
@@ -287,7 +298,7 @@ function PlatformCard({
                   <path d="M15 3h6v6" />
                   <path d="M10 14L21 3" />
                 </svg>
-                Open Signup
+                Copy Info & Open Signup
               </button>
             )}
 
@@ -351,6 +362,7 @@ export default function AccountSetupWizard({
   });
 
   const [creatingGBP, setCreatingGBP] = useState(false);
+  const [creatingYT, setCreatingYT] = useState(false);
 
   const businessName = presentation.businessName;
   const username = generateUsername(businessName);
@@ -396,6 +408,49 @@ export default function AccountSetupWizard({
       updateAccount("google-business", { status: "in-progress" });
     }
     setCreatingGBP(false);
+  };
+
+  const handleAutoCreateYT = async () => {
+    setCreatingYT(true);
+    try {
+      const res = await fetch("/api/accounts/youtube", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channelName: businessName,
+          description: tagline,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        updateAccount("youtube", {
+          status: "created",
+          url: data.url,
+        });
+      } else if (data.createUrl) {
+        // Channel doesn't exist yet — open creation page in popup
+        const w = 600, h = 700;
+        const left = window.screenX + (window.outerWidth - w) / 2;
+        const top = window.screenY + (window.outerHeight - h) / 2;
+        window.open(
+          data.createUrl,
+          "youtube_create",
+          `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`
+        );
+        updateAccount("youtube", { status: "in-progress" });
+      }
+    } catch {
+      const w = 600, h = 700;
+      const left = window.screenX + (window.outerWidth - w) / 2;
+      const top = window.screenY + (window.outerHeight - h) / 2;
+      window.open(
+        "https://www.youtube.com/create_channel",
+        "youtube_create",
+        `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`
+      );
+      updateAccount("youtube", { status: "in-progress" });
+    }
+    setCreatingYT(false);
   };
 
   const completedCount = Object.values(accounts).filter(
@@ -447,9 +502,16 @@ export default function AccountSetupWizard({
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() =>
-                    window.open("https://accounts.google.com/signup", "_blank")
-                  }
+                  onClick={() => {
+                    const w = 600, h = 700;
+                    const left = window.screenX + (window.outerWidth - w) / 2;
+                    const top = window.screenY + (window.outerHeight - h) / 2;
+                    window.open(
+                      "https://accounts.google.com/signup",
+                      "google_signup",
+                      `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`
+                    );
+                  }}
                   className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
                 >
                   1. Create Google Account
@@ -498,9 +560,19 @@ export default function AccountSetupWizard({
             googleConnected={googleConnected}
             onStatusChange={(status) => updateAccount(platform.id, { status, username })}
             onAutoCreate={
-              platform.id === "google-business" ? handleAutoCreateGBP : () => {}
+              platform.id === "google-business"
+                ? handleAutoCreateGBP
+                : platform.id === "youtube"
+                  ? handleAutoCreateYT
+                  : () => {}
             }
-            creating={platform.id === "google-business" ? creatingGBP : false}
+            creating={
+              platform.id === "google-business"
+                ? creatingGBP
+                : platform.id === "youtube"
+                  ? creatingYT
+                  : false
+            }
           />
         ))}
       </div>

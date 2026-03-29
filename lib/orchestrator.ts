@@ -108,7 +108,7 @@ function isError(content: string) {
   return content.startsWith("[") && content.includes("error");
 }
 
-const SYNTHESIS_PROMPT = `You are a brand synthesis engine. Given a complete business launch package from 7 specialist agents, extract a cohesive presentation layer.
+const SYNTHESIS_PROMPT = `You are a brand synthesis engine. Given a complete business launch package from 7 specialist agents, extract a cohesive presentation layer AND a structured roadmap.
 
 CRITICAL: Return ONLY a valid JSON object — no markdown, no explanation, no preamble.
 
@@ -124,50 +124,55 @@ CRITICAL: Return ONLY a valid JSON object — no markdown, no explanation, no pr
   "agentSummaries": [
     {
       "agentId": "planner",
-      "headline": "One punchy sentence summarizing the planner's key output (e.g., 'Your 12-week roadmap is locked in')",
+      "headline": "One punchy sentence summarizing the planner's key output",
       "bullets": ["Key takeaway 1", "Key takeaway 2", "Key takeaway 3"]
     },
+    { "agentId": "research", "headline": "...", "bullets": ["...", "...", "..."] },
+    { "agentId": "legal", "headline": "...", "bullets": ["...", "...", "..."] },
+    { "agentId": "finance", "headline": "...", "bullets": ["...", "...", "..."] },
+    { "agentId": "brand", "headline": "...", "bullets": ["...", "...", "..."] },
+    { "agentId": "social", "headline": "...", "bullets": ["...", "...", "..."] },
+    { "agentId": "critic", "headline": "...", "bullets": ["...", "...", "..."] }
+  ],
+  "roadmap": [
     {
-      "agentId": "research",
-      "headline": "...",
-      "bullets": ["...", "...", "..."]
-    },
-    {
+      "id": "choose-entity",
+      "title": "Choose Your Business Structure",
+      "week": "Week 1",
+      "phase": "Foundation",
+      "why": "One sentence on why this matters — specific to THIS business",
+      "prepared": "What the launch package already provides (e.g., 'LLC vs S-Corp comparison table in your Legal Package')",
+      "action": "Exact next step with specifics (e.g., 'File Articles of Organization at sos.texas.gov — $300 filing fee')",
+      "actionUrl": "https://direct-link-if-applicable.gov",
       "agentId": "legal",
-      "headline": "...",
-      "bullets": ["...", "...", "..."]
-    },
-    {
-      "agentId": "finance",
-      "headline": "...",
-      "bullets": ["...", "...", "..."]
-    },
-    {
-      "agentId": "brand",
-      "headline": "...",
-      "bullets": ["...", "...", "..."]
-    },
-    {
-      "agentId": "social",
-      "headline": "...",
-      "bullets": ["...", "...", "..."]
-    },
-    {
-      "agentId": "critic",
-      "headline": "...",
-      "bullets": ["...", "...", "..."]
+      "estimatedTime": "30 minutes",
+      "cost": "$300"
     }
   ]
 }
 
-Rules:
-- businessName: Use the brand agent's top name recommendation. If none, invent a memorable one that fits the business.
+Rules for agentSummaries:
+- businessName: Use the brand agent's top name recommendation. If none, invent a memorable one.
 - tagline: Use the brand agent's top tagline pick.
-- brandTheme colors: Extract the exact hex codes from the brand package color palette. If not available, pick professional defaults.
+- brandTheme colors: Extract exact hex codes from brand package. If unavailable, pick professional defaults.
 - fontFamily: Use the heading font from the brand package.
-- Each agentSummary headline should be exciting and specific — NOT generic. Reference the actual business.
-- Each bullet should be a concrete fact or deliverable from that agent, max 15 words.
-- Include ALL 7 agents in agentSummaries, in this order: planner, research, legal, finance, brand, social, critic.`;
+- Each headline should be exciting and specific — NOT generic. Reference the actual business.
+- Each bullet: a concrete fact or deliverable, max 15 words.
+- Include ALL 7 agents in order: planner, research, legal, finance, brand, social, critic.
+
+Rules for roadmap (VERY IMPORTANT — this is the user's step-by-step journey):
+- Extract 12-18 discrete action steps from the Planner, Legal, Finance, Brand, and Social agents.
+- Steps must be in chronological order (Week 1 first, Week 12 last).
+- Each step must be a SINGLE concrete action, not a category. "Register LLC in Texas" not "Handle legal stuff".
+- "why" must be specific to this business — not generic advice.
+- "prepared" must reference what's already in their launch package. E.g., "Your Legal Package includes a draft Articles of Organization template" or "See Financial Setup Guide for bank comparison table".
+- "action" must be the EXACT next physical step. Include specific websites, costs, timelines.
+- "actionUrl" should be the direct URL where they can take action (government websites, signup pages, etc.). Omit if no direct URL.
+- "agentId" links to which agent's deliverable is most relevant for this step.
+- "estimatedTime" — how long this step takes (e.g., "15 minutes", "1-3 business days").
+- "cost" — what it costs, if anything. Use "Free" for free steps.
+- Cover these phases in order: Foundation (entity, EIN, bank), Legal & Compliance (licenses, insurance), Product & Brand (website, brand assets), Marketing & Launch (social, content, soft launch), Growth (first customers, metrics).
+- The first 3-4 steps should be things they can do TODAY.`;
 
 async function synthesizePresentation(
   outputs: Record<AgentId, AgentOutput>,
@@ -186,7 +191,7 @@ async function synthesizePresentation(
         { role: "system", content: SYNTHESIS_PROMPT },
         { role: "user", content: summaryInput },
       ],
-      max_tokens: 2000,
+      max_tokens: 4000,
     });
 
     const raw = response.choices?.[0]?.message?.content ?? "";
@@ -223,6 +228,14 @@ async function synthesizePresentation(
       headline: `${AGENT_META[id].deliverable} complete`,
       bullets: [AGENT_META[id].description],
     })),
+    roadmap: [
+      { id: "choose-entity", title: "Choose Your Business Structure", week: "Week 1", phase: "Foundation", why: "Your liability protection and tax treatment depend on this decision.", prepared: "See your Legal Package for an entity comparison table.", action: "Review the Legal Agent's recommendation and decide on LLC vs S-Corp.", agentId: "legal", estimatedTime: "15 minutes", cost: "Free" },
+      { id: "register-entity", title: "Register Your Business", week: "Week 1", phase: "Foundation", why: "You can't open a bank account or get an EIN without this.", prepared: "Your Legal Package includes a draft Articles of Organization.", action: "File with your state's Secretary of State office.", agentId: "legal", estimatedTime: "30 minutes", cost: "Varies by state" },
+      { id: "apply-ein", title: "Apply for an EIN", week: "Week 1", phase: "Foundation", why: "Required for business banking, hiring, and tax filing.", prepared: "Your Financial Setup Guide has step-by-step EIN instructions.", action: "Apply online at irs.gov — instant approval.", actionUrl: "https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online", agentId: "finance", estimatedTime: "10 minutes", cost: "Free" },
+      { id: "open-bank", title: "Open a Business Bank Account", week: "Week 2", phase: "Foundation", why: "Separates personal and business finances from day one.", prepared: "Your Financial Setup Guide compares 5 banks with pricing.", action: "Pick a bank from the comparison table and apply online.", agentId: "finance", estimatedTime: "20 minutes", cost: "Free" },
+      { id: "setup-brand", title: "Finalize Brand Identity", week: "Week 3-4", phase: "Brand", why: "Consistent branding builds trust before you have customers.", prepared: "Your Brand Package has colors, fonts, logo concepts, and messaging.", action: "Hand the Brand Package to a designer or use Canva to build assets.", agentId: "brand", estimatedTime: "2-3 hours", cost: "Free-$200" },
+      { id: "launch-social", title: "Set Up Social Media Accounts", week: "Week 4-5", phase: "Marketing", why: "Your audience needs to find you before launch day.", prepared: "Your Social Media Kit has bios, content pillars, and a 30-day calendar.", action: "Create accounts using the Account Setup Wizard above.", agentId: "social", estimatedTime: "1 hour", cost: "Free" },
+    ],
   };
 
   emit({ type: "synthesis_complete", presentation: fallback, timestamp: now() });
